@@ -1,6 +1,9 @@
 """User-related Pydantic schemas."""
 
+from typing import Literal
 from pydantic import BaseModel, EmailStr, Field
+
+UserRole = Literal["CANDIDATE", "INTERVIEWER", "ADMIN"]
 
 
 class UserCreate(BaseModel):
@@ -9,6 +12,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=100)
     full_name: str | None = Field(None, max_length=255)
+    role: UserRole = "CANDIDATE"
 
 
 class UserLogin(BaseModel):
@@ -24,6 +28,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     full_name: str | None
+    role: str
     is_active: bool
     is_verified: bool
     created_at: str
@@ -37,5 +42,4 @@ class Token(BaseModel):
 
     access_token: str
     token_type: str = "bearer"
-
-
+    user: UserResponse

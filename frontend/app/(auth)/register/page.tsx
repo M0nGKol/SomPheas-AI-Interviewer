@@ -9,7 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, Mail, Lock, User, UserPlus } from 'lucide-react';
+
+function getDashboardPath(role: string) {
+  if (role === 'INTERVIEWER') return '/dashboard/interviewer';
+  if (role === 'ADMIN') return '/dashboard';
+  return '/dashboard/candidate';
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -19,6 +26,7 @@ export default function RegisterPage() {
     email: '',
     password: '',
     confirmPassword: '',
+    role: 'CANDIDATE',
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -30,22 +38,21 @@ export default function RegisterPage() {
       setError('Passwords do not match');
       return;
     }
-
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters');
       return;
     }
 
     try {
-      await register(formData.email, formData.password, formData.fullName);
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+      const user = await register(formData.email, formData.password, formData.fullName, formData.role);
+      router.push(getDashboardPath(user.role));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background via-background to-muted/20 p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
@@ -54,9 +61,7 @@ export default function RegisterPage() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-          <CardDescription>
-            Get started with SomPheas today
-          </CardDescription>
+          <CardDescription>Get started with SomPheas today</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
@@ -100,6 +105,22 @@ export default function RegisterPage() {
               </div>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="role">I am a...</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(val) => setFormData({ ...formData, role: val })}
+                disabled={isLoading}
+              >
+                <SelectTrigger id="role">
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CANDIDATE">Candidate</SelectItem>
+                  <SelectItem value="INTERVIEWER">Interviewer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -136,11 +157,7 @@ export default function RegisterPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -162,4 +179,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

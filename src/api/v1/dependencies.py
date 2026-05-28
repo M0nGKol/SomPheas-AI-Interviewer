@@ -47,3 +47,15 @@ async def get_current_user(
     return user
 
 
+def require_roles(*roles: str):
+    """Dependency factory that requires the current user to have one of the given roles."""
+
+    async def _checker(user: User = Depends(get_current_user)) -> User:
+        if user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required role(s): {', '.join(roles)}",
+            )
+        return user
+
+    return _checker

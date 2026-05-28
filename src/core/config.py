@@ -23,10 +23,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # OpenAI
-    OPENAI_API_KEY: str
-    OPENAI_TTS_MODEL: str = "tts-1-hd"  # tts-1 or tts-1-hd (for text-to-speech) - using hd for more natural voice
-    OPENAI_TTS_VOICE: str = "alloy"  # alloy, echo, fable, onyx, nova, shimmer
+    # Gemini
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     # LiveKit
     LIVEKIT_API_KEY: str = ""
