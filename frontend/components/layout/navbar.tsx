@@ -6,7 +6,7 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import {
   LayoutDashboard,
   MessageSquare,
-  FileText,
+  BookOpen,
   LogOut,
   User,
   Github,
@@ -22,28 +22,34 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Interviews', href: '/dashboard/interviews', icon: MessageSquare },
-  { name: 'Resumes', href: '/resumes', icon: FileText },
-];
+function getDashboardHome(role?: string) {
+  if (role === 'INTERVIEWER' || role === 'ADMIN') return '/dashboard/interviewer';
+  return '/dashboard/candidate';
+}
+
+function getNavLinks(role?: string) {
+  return [
+    { name: 'Dashboard', href: getDashboardHome(role), icon: LayoutDashboard },
+    { name: 'Interviews', href: '/dashboard/interviews', icon: MessageSquare },
+    { name: 'Problems', href: '/dashboard/problems', icon: BookOpen },
+  ];
+}
 
 export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuthStore();
 
-  // Hide navbar on auth pages
   if (pathname?.startsWith('/login') || pathname?.startsWith('/register')) {
     return null;
   }
 
-  // Show simplified navbar on landing page when not authenticated
   if (!isAuthenticated && pathname === '/') {
     return (
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4">
           <Link href="/" className="flex items-center space-x-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
@@ -74,10 +80,7 @@ export function Navbar() {
     );
   }
 
-  // Don't show navbar if not authenticated on other pages
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (!isAuthenticated) return null;
 
   const handleLogout = () => {
     logout();
@@ -94,11 +97,13 @@ export function Navbar() {
       .slice(0, 2);
   };
 
+  const navLinks = getNavLinks(user?.role);
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center space-x-2">
+        <Link href={getDashboardHome(user?.role)} className="flex items-center space-x-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
             <MessageSquare className="h-5 w-5 text-primary-foreground" />
           </div>
@@ -107,7 +112,7 @@ export function Navbar() {
 
         {/* Navigation */}
         <nav className="flex items-center space-x-1">
-          {navigation.map((item) => {
+          {navLinks.map((item) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
             return (
               <Link
@@ -138,7 +143,16 @@ export function Navbar() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuLabel>
+              <div className="flex flex-col gap-1">
+                <span>My Account</span>
+                {user?.role && (
+                  <Badge variant="secondary" className="w-fit text-xs">
+                    {user.role}
+                  </Badge>
+                )}
+              </div>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
@@ -155,7 +169,3 @@ export function Navbar() {
     </header>
   );
 }
-
-
-
-
