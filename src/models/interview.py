@@ -9,7 +9,7 @@ from src.core.database import Base
 
 
 class Interview(Base):
-    """Interview model for storing interview sessions."""
+    """Interview session model."""
 
     __tablename__ = "interviews"
 
@@ -18,11 +18,17 @@ class Interview(Base):
         ForeignKey("users.id"), nullable=False, index=True)
     resume_id: Mapped[int | None] = mapped_column(
         ForeignKey("resumes.id"), nullable=True, index=True)
+    interviewer_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    problem_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("problems.id", ondelete="SET NULL"), nullable=True, index=True)
 
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(
-        String(50), default="pending", nullable=False
-    )  # pending, in_progress, completed, cancelled
+        String(50), default="CREATED", nullable=False
+    )
+    language: Mapped[str] = mapped_column(String(50), default="python", nullable=False)
+    current_code: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     conversation_history: Mapped[list | None] = mapped_column(
         JSON, nullable=True, default=list
@@ -49,9 +55,10 @@ class Interview(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="interviews")
-    resume: Mapped["Resume | None"] = relationship(
-        "Resume", back_populates="interviews")
+    user: Mapped["User"] = relationship(
+        "User", foreign_keys=[user_id], back_populates="interviews"
+    )
+    resume: Mapped["Resume | None"] = relationship("Resume", back_populates="interviews")
 
     def __repr__(self) -> str:
         return f"<Interview(id={self.id}, user_id={self.user_id}, status={self.status})>"
