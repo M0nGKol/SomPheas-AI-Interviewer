@@ -1,20 +1,12 @@
 # SomPheas
 
-<div align="center">
-  <img src="frontend/public/landing-page.png" alt="Landing Page" width="100%"/>
-  <br/><br/>
-  <img src="frontend/public/interview.png" alt="Interview Interface" width="100%"/>
-  <br/><br/>
-  <img src="frontend/public/resumes.png" alt="Resumes Page" width="100%"/>
-</div>
+**Problem:** Traditional technical interview practice often lacks realism, immediate feedback, and interactive engagement.
 
-**Problem:** Traditional technical interview practice often lacks realism, immediate feedback, and interactive voice-based engagement.
-
-**Solution:** SomPheas delivers AI-driven technical interviews using real-time voice conversations, live code execution, and in-depth feedback, powered by LangGraph and LiveKit.
+**Solution:** SomPheas delivers AI-driven technical interviews with real-time conversations, live code execution, and in-depth feedback, powered by Google Gemini and LangGraph.
 
 ---
 
-**Python** `3.11+` **TypeScript** `5.0+` **LangGraph** `0.0.40+` **LiveKit** `0.11.0+` **OpenAI** `1.0.0+` **License** `GNU` **Status** `Portfolio-Project`
+**Python** `3.11+` **TypeScript** `5.0+` **LangGraph** `0.0.40+` **Gemini** `2.5 Flash` **LiveKit** `1.0+` **License** `GNU` **Status** `Portfolio-Project`
 
 Portfolio Project — Production-ready codebase demonstrating AI system architecture.
 
@@ -22,7 +14,7 @@ Portfolio Project — Production-ready codebase demonstrating AI system architec
 
 Provide candidates with realistic interview practice through:
 
-- **Natural voice conversations** with AI interviewer
+- **Natural AI conversations** with a context-aware interviewer
 - **Live code execution** in isolated sandbox
 - **Comprehensive feedback** on communication, technical knowledge, problem-solving, and code quality
 - **Resume-based questions** tailored to candidate background
@@ -38,45 +30,43 @@ graph TB
     subgraph Backend
         API[FastAPI Server]
         ORCH[LangGraph Orchestrator]
+        AI[AI Service]
     end
 
-    subgraph Voice
+    subgraph Realtime
+        WS[WebSocket Manager]
         LK[LiveKit Server]
-        AGENT[LiveKit Agent]
-        TTS[OpenAI TTS]
-        STT[OpenAI STT]
     end
 
     subgraph Services
         SB[Docker Sandbox]
-        LLM[GPT-4o-mini]
+        LLM[Gemini 2.5 Flash]
         DB[PostgreSQL]
         REDIS[Redis Cache]
     end
 
     FE -->|HTTP REST| API
-    FE -->|WebSocket| LK
-    API -->|HTTP| LK
+    FE -->|WebSocket| WS
+    FE -->|WebRTC| LK
     API -->|SQL| DB
     API -->|Cache| REDIS
-    LK -->|WebSocket| AGENT
-    AGENT -->|LangGraph| ORCH
+    API -->|LangGraph| ORCH
     ORCH -->|API| LLM
     ORCH -->|Docker| SB
-    AGENT -->|API| TTS
-    AGENT -->|API| STT
+    AI -->|API| LLM
 ```
 
 ### Core Components
 
-| Component        | Technology     | Purpose                               |
-| ---------------- | -------------- | ------------------------------------- |
-| **Orchestrator** | LangGraph      | State machine managing interview flow |
-| **Agent**        | LiveKit Agents | Real-time voice agent (STT/TTS)       |
-| **LLM**          | GPT-4o-mini    | Question generation, decision making  |
-| **Sandbox**      | Docker         | Isolated code execution               |
-| **Database**     | PostgreSQL     | Interview state, checkpoints          |
-| **Cache**        | Redis          | State caching, session management     |
+| Component        | Technology        | Purpose                               |
+| ---------------- | ----------------- | ------------------------------------- |
+| **Orchestrator** | LangGraph         | State machine managing interview flow |
+| **AI Service**   | Google Gemini     | Chat, code review, evaluation         |
+| **LLM**          | Gemini 2.5 Flash  | Question generation, decision making  |
+| **Sandbox**      | Docker            | Isolated code execution               |
+| **Database**     | PostgreSQL        | Interview state, checkpoints          |
+| **Cache**        | Redis             | State caching, session management     |
+| **Realtime**     | WebSocket/LiveKit | Live session sync and video/audio     |
 
 ## How It Works
 
@@ -87,32 +77,29 @@ sequenceDiagram
     participant U as User
     participant F as Frontend
     participant A as API
-    participant LK as LiveKit
-    participant AG as Agent
+    participant WS as WebSocket
     participant O as Orchestrator
-    participant LLM as GPT-4o-mini
+    participant LLM as Gemini 2.5 Flash
 
     U->>F: Start Interview
-    F->>A: POST interviews
-    A->>LK: Create Room
-    F->>LK: Connect WebSocket
-    LK->>AG: Bootstrap Agent
-    AG->>O: Initialize
+    F->>A: POST /interviews
+    F->>WS: Connect WebSocket
+    A->>O: Initialize
     O->>LLM: Generate Greeting
     LLM->>O: Response
-    O->>AG: next_message
-    AG->>LK: TTS Audio
-    LK->>U: Hear Greeting
+    O->>A: next_message
+    A->>WS: Broadcast to Client
+    WS->>U: See/Hear Greeting
 
     loop Conversation
-        U->>LK: Speak
-        LK->>AG: STT Text
-        AG->>O: execute_step
+        U->>A: Send Message
+        A->>O: execute_step
         O->>LLM: Detect Intent
         O->>LLM: Decide Next Action
         O->>LLM: Generate Response
-        O->>AG: Response
-        AG->>U: TTS Audio
+        O->>A: Response
+        A->>WS: Broadcast
+        WS->>U: Receive Response
     end
 ```
 
@@ -127,7 +114,7 @@ sequenceDiagram
 
 ### Strengths
 
-- ✅ **Real-time voice** with <3s latency
+- ✅ **Real-time sync** via WebSocket per interview room
 - ✅ **State persistence** via checkpoints
 - ✅ **Concurrent interviews** (isolated by thread_id)
 - ✅ **Code execution** in isolated Docker containers
@@ -138,21 +125,22 @@ sequenceDiagram
 ```
 SomPheas/
 ├── src/                    # Backend (Python/FastAPI)
-│   ├── agents/            # LiveKit agent logic
 │   ├── api/               # REST API implementation
 │   │   └── v1/
-│   │       └── endpoints/ # Endpoints for interviews, resumes, voice, sandbox
+│   │       └── endpoints/ # Endpoints: interviews, resumes, ai, code, sandbox, websocket
 │   ├── core/              # Configuration, database, and authentication utilities
 │   ├── models/            # Database models for core entities
 │   ├── schemas/           # Pydantic schemas for data validation
 │   └── services/          # Business logic and subsystems
+│       ├── ai/            # Gemini AI chat, code review, and evaluation
 │       ├── analysis/      # Interview response and code analysis
 │       ├── analytics/     # Analytics functionality
 │       ├── data/          # Checkpointing and state management
 │       ├── execution/     # Secure code sandboxing
+│       ├── interviews/    # Interview business logic
 │       ├── logging/       # Interview activity logging
 │       ├── orchestrator/  # State orchestration using LangGraph
-│       └── voice/         # LiveKit voice management
+│       └── websocket/     # Real-time connection management
 ├── frontend/              # Frontend (Next.js + React)
 │   ├── app/              # App routing and authentication
 │   ├── components/       # UI components (interview, analytics, UI kit)
@@ -170,7 +158,6 @@ SomPheas/
 - [Architecture](docs/ARCHITECTURE.md) - System architecture and component relationships
 - [API Reference](docs/API.md) - REST API endpoints
 - [Frontend](docs/FRONTEND.md) - Next.js frontend architecture and development
-- [Voice Infrastructure](docs/VOICE_INFRASTRUCTURE.md) - LiveKit setup and agent architecture
 - [User Guide](docs/USER_GUIDE.md) - How to use SomPheas
 - [Local Development](docs/LOCAL_DEVELOPMENT.md) - Setup and development workflow
 - [LangGraph Guide](docs/LANGGRAPH.md) - State, nodes, and orchestration
@@ -180,16 +167,12 @@ SomPheas/
 
 ```bash
 # Backend
-cd src
-uvicorn main:app --reload
+uvicorn src.main:app --reload
 
 # Frontend
 cd frontend
 npm install
 npm run dev
-
-# Agent (requires LiveKit server)
-python -m src.agents.interview_agent
 ```
 
 See [Local Development](docs/LOCAL_DEVELOPMENT.md) for detailed setup.
@@ -200,12 +183,12 @@ See [Local Development](docs/LOCAL_DEVELOPMENT.md) for detailed setup.
 
 - **FastAPI** - Modern async web framework
 - **Python 3.11+** - Programming language
-- **LangGraph 0.0.40+** - State machine orchestration
+- **LangGraph** - State machine orchestration
 - **SQLAlchemy 2.0+** - ORM with async support
 - **Alembic** - Database migrations
-- **LiveKit Agents** - Real-time voice agents
-- **OpenAI GPT-4o-mini** - LLM for question generation
-- **Instructor** - Structured LLM outputs
+- **Google Gemini 2.5 Flash** - LLM for AI conversations and evaluation
+- **google-genai** - Official Gemini SDK
+- **LiveKit** - Real-time video/audio infrastructure
 - **PostgreSQL** - Primary database
 - **Redis** - Caching and state management
 - **Docker** - Code sandbox execution
@@ -224,7 +207,7 @@ See [Local Development](docs/LOCAL_DEVELOPMENT.md) for detailed setup.
 
 ### Deployment
 
-- **Railway** - Backend and agent hosting
+- **Railway** - Backend hosting
 - **Vercel** - Frontend hosting
 
 ## License
