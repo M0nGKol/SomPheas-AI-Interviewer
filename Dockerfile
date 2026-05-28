@@ -28,14 +28,13 @@ RUN uv pip install --system --no-cache \
     pydantic>=2.5.0 \
     pydantic[email]>=2.5.0 \
     pydantic-settings>=2.1.0 \
-    openai>=1.3.0 \
-    instructor>=0.4.5 \
+    google-genai>=1.0.0 \
     langgraph>=0.0.40 \
     pdfplumber>=0.10.0 \
     aiofiles>=23.2.1 \
     python-dotenv>=1.0.0 \
-    livekit>=0.11.0 \
-    livekit-agents>=0.7.0 \
+    livekit>=1.0.0 \
+    livekit-agents>=1.0.0 \
     docker>=6.1.0
 
 # Stage 2: Runtime
@@ -76,7 +75,7 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 # Run migrations and start application
 # Railway will override PORT via $PORT environment variable

@@ -207,7 +207,7 @@ See [Local Development](docs/LOCAL_DEVELOPMENT.md) for detailed setup.
 
 ### Deployment
 
-- **Railway** - Backend hosting
+- **Render** - Backend hosting
 - **Vercel** - Frontend hosting
 
 ## License

@@ -1,455 +1,150 @@
 # Deployment Guide
 
-## Overview
+SomPheas deploys as two services:
 
-SomPheas deploys to:
-
-- **Railway**: Backend API, Agent, Database, Redis
-- **Vercel**: Frontend (Next.js)
+- **Render** — FastAPI backend (runs migrations + API on start)
+- **Vercel** — Next.js frontend
 
 ```mermaid
 graph TB
-    subgraph Vercel["Vercel"]
+    subgraph Vercel
         FE[Next.js Frontend]
     end
 
-    subgraph Railway["Railway"]
+    subgraph Render
         API[FastAPI Backend]
-        AGENT[LiveKit Agent]
         DB[PostgreSQL]
         REDIS[Redis]
     end
 
-    subgraph External["External"]
+    subgraph External
         LK[LiveKit Cloud]
-        OPENAI[OpenAI API]
+        GEMINI[Gemini API]
     end
 
-    FE -->|HTTPS| API
-    FE -->|WebSocket| LK
+    FE -->|HTTPS REST| API
+    FE -->|WSS| API
+    FE -->|WebRTC| LK
     API -->|SQL| DB
     API -->|Cache| REDIS
-    AGENT -->|WebSocket| LK
-    AGENT -->|API| OPENAI
-    API -->|API| OPENAI
+    API -->|API| GEMINI
+    API -->|API| LK
 ```
 
-The frontend connects to the backend via HTTPS for REST APIs and directly to LiveKit Cloud via WebSocket for voice streams. The agent runs as a separate Railway service, connecting to LiveKit Cloud to handle voice sessions. Both the API and agent use the same database and Redis instance, sharing connection pools. The agent scales independently—deploy multiple instances and LiveKit distributes connections across them.
+---
 
-## Railway Deployment (Backend)
+## Render (Backend)
 
 ### Prerequisites
 
-- Railway account: [railway.app](https://railway.app)
-- GitHub repository connected
-- Railway CLI installed: `npm i -g @railway/cli`
+- [Render account](https://render.com)
+- GitHub repo connected to Render
 
-### 1. Create Project
+### Step 1 — Deploy via render.yaml (Blueprint)
 
-```bash
-railway login
-railway init
-```
+The `render.yaml` at the repo root defines all three services (API, PostgreSQL, Redis) in one file.
 
-### 2. Add Services
+1. Go to **Render dashboard → New → Blueprint**
+2. Connect your GitHub repository
+3. Render detects `render.yaml` and creates all services automatically
 
-**PostgreSQL:**
+This provisions:
+- `sompheas-api` — Docker-based web service
+- `sompheas-db` — PostgreSQL database
+- `sompheas-redis` — Redis instance
 
-```bash
-railway add postgresql
-# Note DATABASE_URL from service variables
-```
+### Step 2 — Set Secret Environment Variables
 
-**Redis:**
+`render.yaml` marks secrets as `sync: false` — you must set these manually after the blueprint deploys.
 
-```bash
-railway add redis
-# Note REDIS_URL from service variables
-```
+In **Render dashboard → sompheas-api → Environment**, fill in:
 
-### 3. Configure Environment Variables
+| Variable             | Value                                | Where to get it                                 |
+| -------------------- | ------------------------------------ | ----------------------------------------------- |
+| `GEMINI_API_KEY`     | Your Gemini API key                  | [Google AI Studio](https://aistudio.google.com) |
+| `LIVEKIT_URL`        | `https://your-project.livekit.cloud` | [LiveKit Cloud](https://cloud.livekit.io)       |
+| `LIVEKIT_WS_URL`     | `wss://your-project.livekit.cloud`   | LiveKit Cloud                                   |
+| `LIVEKIT_API_KEY`    | LiveKit API key                      | LiveKit Cloud                                   |
+| `LIVEKIT_API_SECRET` | LiveKit API secret                   | LiveKit Cloud                                   |
 
-In Railway dashboard → Variables:
+Everything else (`DATABASE_URL`, `REDIS_URL`, `SECRET_KEY`) is auto-set by `render.yaml`.
 
-| Variable             | Value                              | Source  |
-| -------------------- | ---------------------------------- | ------- |
-| `DATABASE_URL`       | Auto-set by PostgreSQL service     | Railway |
-| `REDIS_URL`          | Auto-set by Redis service          | Railway |
-| `SECRET_KEY`         | Generate: `openssl rand -hex 32`   | Manual  |
-| `OPENAI_API_KEY`     | Your OpenAI API key                | Manual  |
-| `LIVEKIT_URL`        | `wss://your-project.livekit.cloud` | LiveKit |
-| `LIVEKIT_API_KEY`    | LiveKit API key                    | LiveKit |
-| `LIVEKIT_API_SECRET` | LiveKit API secret                 | LiveKit |
-| `ENVIRONMENT`        | `production`                       | Manual  |
-| `LOG_LEVEL`          | `INFO`                             | Manual  |
+### Step 3 — Trigger First Deploy
 
-### 4. Deploy Backend API
+After setting the secrets, click **Manual Deploy → Deploy latest commit** on the `sompheas-api` service.
 
-**Create `railway.json`:**
+Migrations run automatically before the server starts (`alembic upgrade head` is baked into the start command).
 
-```json
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
-  },
-  "deploy": {
-    "startCommand": "uvicorn src.main:app --host 0.0.0.0 --port $PORT",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-```
+### Step 4 — Note Your API URL
 
-**Deploy:**
+Render assigns a public URL: `https://sompheas-api.onrender.com`
+
+You'll need this for the frontend env vars.
+
+### Step 5 — Verify
 
 ```bash
-railway up
+curl https://sompheas-api.onrender.com/health
+# {"status": "healthy"}
 ```
 
-**Set Public Domain:**
+---
 
-- Railway dashboard → Settings → Generate Domain
-- Note domain: `your-app.railway.app`
-
-### 5. Deploy Agent
-
-**Create separate service for agent:**
-
-```bash
-railway service create interview-agent
-railway link interview-agent
-```
-
-**Create `railway-agent.json`:**
-
-```json
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "Dockerfile"
-  },
-  "deploy": {
-    "startCommand": "python -m livekit.agents start src.agents.interview_agent",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-```
-
-**Environment Variables (same as API):**
-
-- Copy all variables from API service
-- Add: `LIVEKIT_AGENT_URL` (if using agent URL)
-
-**Deploy:**
-
-```bash
-railway up
-```
-
-### 6. Database Migrations
-
-**Run migrations on deploy:**
-
-```bash
-railway run alembic upgrade head
-```
-
-Or add to startup script:
-
-```bash
-# In Dockerfile or startup script
-alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port $PORT
-```
-
-### 7. Health Checks
-
-Railway automatically checks `/health` endpoint:
-
-```python
-# src/main.py
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
-```
-
-## Vercel Deployment (Frontend)
+## Vercel (Frontend)
 
 ### Prerequisites
 
-- Vercel account: [vercel.com](https://vercel.com)
+- [Vercel account](https://vercel.com)
 - Vercel CLI: `npm i -g vercel`
 
-### 1. Connect Repository
+### Step 1 — Import the Repo
 
-1. Go to Vercel dashboard
-2. Import Git repository
-3. Select `frontend/` as root directory
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import your GitHub repository
+3. Set **Root Directory** to `frontend`
 
-### 2. Configure Environment Variables
+Vercel auto-detects Next.js — no build command changes needed.
 
-In Vercel dashboard → Settings → Environment Variables:
+### Step 2 — Set Environment Variables
 
-| Variable                  | Value                              | Environment |
-| ------------------------- | ---------------------------------- | ----------- |
-| `NEXT_PUBLIC_API_URL`     | `https://your-app.railway.app`     | Production  |
-| `NEXT_PUBLIC_LIVEKIT_URL` | `wss://your-project.livekit.cloud` | Production  |
+In **Vercel dashboard → your project → Settings → Environment Variables**, add:
 
-### 3. Build Settings
+| Variable              | Value                                    | Environment |
+| --------------------- | ---------------------------------------- | ----------- |
+| `NEXT_PUBLIC_API_URL` | `https://sompheas-api.onrender.com`      | Production  |
+| `NEXT_PUBLIC_WS_URL`  | `wss://sompheas-api.onrender.com`        | Production  |
 
-**Framework Preset:** Next.js
-**Root Directory:** `frontend`
-**Build Command:** `npm run build`
-**Output Directory:** `.next`
+Both point to the same Render domain — just different protocols.
 
-### 4. Deploy
+### Step 3 — Deploy
 
 ```bash
 cd frontend
 vercel --prod
 ```
 
-Or push to main branch (auto-deploy enabled).
+Or push to `main` — Vercel auto-deploys on every push.
+
+---
 
 ## LiveKit Setup
 
-### Option 1: LiveKit Cloud (Recommended)
+Sign up at [cloud.livekit.io](https://cloud.livekit.io), create a project, and copy:
 
-1. Sign up: [livekit.io](https://livekit.io)
-2. Create project
-3. Get credentials:
-   - URL: `wss://your-project.livekit.cloud`
-   - API Key
-   - API Secret
+- **URL** → `LIVEKIT_URL` and `LIVEKIT_WS_URL`
+- **API Key** → `LIVEKIT_API_KEY`
+- **API Secret** → `LIVEKIT_API_SECRET`
 
-### Option 2: Self-Hosted
-
-**Deploy on Railway:**
-
-```bash
-railway service create livekit-server
-railway add livekit-server
-```
-
-**Environment Variables:**
-
-```bash
-LIVEKIT_KEYS="api-key: api-secret"
-```
-
-**Deploy LiveKit:**
-
-```dockerfile
-FROM livekit/livekit-server
-# Configure in railway
-```
-
-## Docker Configuration
-
-### Dockerfile
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# Install dependencies
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy source
-COPY src/ ./src/
-COPY alembic.ini ./
-COPY alembic/ ./alembic/
-
-# Run migrations and start
-CMD alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port $PORT
-```
-
-### Docker Compose (Local Testing)
-
-```yaml
-version: "3.8"
-services:
-  api:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://...
-    depends_on:
-      - db
-      - redis
-
-  db:
-    image: postgres:14
-    environment:
-      - POSTGRES_DB=sompheas
-
-  redis:
-    image: redis:7
-```
-
-## Monitoring
-
-### Railway Metrics
-
-- **CPU Usage:** Monitor in Railway dashboard
-- **Memory Usage:** Check service metrics
-- **Logs:** View in Railway dashboard → Logs
-
-### Application Logs
-
-**Backend:**
-
-```bash
-railway logs
-railway logs --service interview-agent
-```
-
-**Frontend:**
-
-- Vercel dashboard → Logs
-
-### Health Checks
-
-**API Health:**
-
-```bash
-curl https://your-app.railway.app/health
-```
-
-**Agent Health:**
-
-- Check LiveKit dashboard for agent connections
-- Verify agent logs show successful connections
-
-## Scaling
-
-### Backend API
-
-**Horizontal Scaling:**
-
-- Railway auto-scales based on traffic
-- Multiple instances share database/Redis
-
-**Resource Limits:**
-
-- CPU: 2 vCPU (recommended)
-- Memory: 2GB (recommended)
-- Disk: 10GB (for logs)
-
-### Agent
-
-**Scaling Agents:**
-
-- Deploy multiple agent instances
-- LiveKit distributes connections
-- Each agent handles 50+ concurrent interviews
-
-**Resource Limits:**
-
-- CPU: 1 vCPU per agent
-- Memory: 1GB per agent
-- Consider: Agent count = Expected interviews / 50
-
-### Database
-
-**PostgreSQL Scaling:**
-
-- Start: Railway shared PostgreSQL
-- Scale: Dedicated PostgreSQL (higher tier)
-- Connection pooling: Use PgBouncer
-
-### Redis
-
-**Redis Scaling:**
-
-- Start: Railway Redis (256MB)
-- Scale: Upgrade to higher tier
-- Use: Caching, session storage
+---
 
 ## Troubleshooting
 
-| Issue                         | Solution                                      |
-| ----------------------------- | --------------------------------------------- |
-| **Build fails**               | Check Dockerfile, verify dependencies         |
-| **Database connection error** | Verify DATABASE_URL, check PostgreSQL service |
-| **Agent won't connect**       | Verify LiveKit credentials, check agent logs  |
-| **Frontend can't reach API**  | Check CORS settings, verify API URL           |
-| **High memory usage**         | Enable cleanup, check for memory leaks        |
-| **Slow responses**            | Check database queries, enable Redis caching  |
-
-## CI/CD
-
-### GitHub Actions (Optional)
-
-```yaml
-name: Deploy
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: railway-app/railway-action@v1
-        with:
-          service: api
-          token: ${{ secrets.RAILWAY_TOKEN }}
-
-  deploy-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: amondnet/vercel-action@v20
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: ./frontend
-```
-
-## Security
-
-### Environment Variables
-
-- **Never commit** `.env` files
-- Use Railway/Vercel secrets
-- Rotate keys regularly
-
-### API Security
-
-- **CORS:** Configure allowed origins
-- **Rate Limiting:** Implement per endpoint
-- **Authentication:** JWT tokens required
-
-### Database Security
-
-- **SSL:** Enable PostgreSQL SSL
-- **Backups:** Enable automatic backups
-- **Access:** Restrict database access
-
-## Cost Estimation
-
-| Service                  | Tier          | Monthly Cost |
-| ------------------------ | ------------- | ------------ |
-| **Railway (API)**        | Hobby         | $5-20        |
-| **Railway (Agent)**      | Hobby         | $5-20        |
-| **Railway (PostgreSQL)** | Hobby         | $5-10        |
-| **Railway (Redis)**      | Hobby         | $5-10        |
-| **Vercel (Frontend)**    | Hobby         | Free         |
-| **LiveKit Cloud**        | Starter       | $0-50        |
-| **OpenAI API**           | Pay-as-you-go | $10-100+     |
-| **Total**                |               | $30-220+     |
-
-## Next Steps
-
-- [Local Development](LOCAL_DEVELOPMENT.md)
-- [API Reference](API.md)
-- [Architecture](ARCHITECTURE.md)
+| Symptom                           | Fix                                                                   |
+| --------------------------------- | --------------------------------------------------------------------- |
+| Deploy fails at migration step    | Check `DATABASE_URL` is set and PostgreSQL service is healthy         |
+| `500` on any endpoint             | Check Render logs: dashboard → sompheas-api → Logs                   |
+| Frontend can't reach API          | Verify `NEXT_PUBLIC_API_URL` matches Render domain (no trailing `/`)  |
+| WebSocket disconnects immediately | Verify `NEXT_PUBLIC_WS_URL` uses `wss://`, not `https://`             |
+| Gemini calls fail                 | Verify `GEMINI_API_KEY` is valid and `GEMINI_MODEL` is set            |
+| LiveKit room creation fails       | Verify all three LiveKit env vars are set correctly                   |
+| Service spins down (free tier)    | Render free tier sleeps after 15 min inactivity — upgrade to Starter  |
