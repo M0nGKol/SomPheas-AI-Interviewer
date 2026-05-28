@@ -22,9 +22,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
 
-  /* Server components external packages - prevents bundling on server */
-  serverExternalPackages: ['livekit-client', '@livekit/components-react'],
-
   /* Headers for security and performance */
   async headers() {
     return [
