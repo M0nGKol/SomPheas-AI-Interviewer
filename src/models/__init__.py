@@ -7,8 +7,11 @@ from src.models.problem import Problem
 from src.models.session_event import SessionEvent
 from src.models.code_snapshot import CodeSnapshot
 from src.models.code_submission import CodeSubmission
+from src.models.message import Message
+from src.models.ai_evaluation import AIEvaluation
 
 __all__ = [
     "User", "Resume", "Interview", "Problem",
-    "SessionEvent", "CodeSnapshot", "CodeSubmission",
+    "Message", "AIEvaluation", "CodeSnapshot",
+    "CodeSubmission", "SessionEvent",
 ]
