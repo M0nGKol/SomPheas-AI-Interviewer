@@ -149,6 +149,8 @@ Backend → Render, Frontend → Vercel. See [docs/DEPLOYMENT.md](docs/DEPLOYMEN
 |-----|-------------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and component overview |
 | [docs/API.md](docs/API.md) | REST API reference |
+| [docs/DATABASE.md](docs/DATABASE.md) | PostgreSQL schema, migrations, and operations |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors and fixes |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Render + Vercel deployment guide |
 | [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) | Local setup guide |
 | [docs/FRONTEND.md](docs/FRONTEND.md) | Frontend architecture |
