@@ -1,215 +1,156 @@
-# SomPheas
+# InterviewLab
 
-**Problem:** Traditional technical interview practice often lacks realism, immediate feedback, and interactive engagement.
-
-**Solution:** SomPheas delivers AI-driven technical interviews with real-time conversations, live code execution, and in-depth feedback, powered by Google Gemini and LangGraph.
+**Real-time AI-powered technical interview platform** — collaborative code editor, voice & video, AI evaluation, and screen sharing in one live session.
 
 ---
 
-**Python** `3.11+` **TypeScript** `5.0+` **LangGraph** `0.0.40+` **Gemini** `2.5 Flash` **LiveKit** `1.0+` **License** `GNU` **Status** `Portfolio-Project`
+**Python** `3.11+` · **TypeScript** `5.0+` · **Gemini** `2.5 Flash` · **LiveKit** `1.0+` · **Next.js** `16` · **Status** `Portfolio-Project`
 
-Portfolio Project — Production-ready codebase demonstrating AI system architecture.
+---
 
-## Aim
+## What It Does
 
-Provide candidates with realistic interview practice through:
+InterviewLab connects interviewers and candidates in a live technical interview room:
 
-- **Natural AI conversations** with a context-aware interviewer
-- **Live code execution** in isolated sandbox
-- **Comprehensive feedback** on communication, technical knowledge, problem-solving, and code quality
-- **Resume-based questions** tailored to candidate background
+- **Interviewer** schedules a session, picks a coding problem, and invites a candidate
+- **Candidate** joins via invite link or 6-character room code
+- Both collaborate in a **shared Monaco code editor** (Yjs CRDT, live cursors, breakpoints)
+- **Voice & video** via LiveKit WebRTC
+- **AI assistant** (Gemini 2.5 Flash) streams answers during the session
+- After the session ends, a **Celery worker** auto-generates a scored evaluation report
 
 ## High-Level Architecture
 
 ```mermaid
 graph TB
-    subgraph Frontend
-        FE[Next.js React App]
+    subgraph Frontend["Frontend (Vercel)"]
+        FE[Next.js 16 App]
     end
 
-    subgraph Backend
-        API[FastAPI Server]
-        ORCH[LangGraph Orchestrator]
-        AI[AI Service]
+    subgraph Backend["Backend (Render)"]
+        API[FastAPI]
+        WORKER[Celery Worker]
     end
 
-    subgraph Realtime
-        WS[WebSocket Manager]
-        LK[LiveKit Server]
-    end
-
-    subgraph Services
-        SB[Docker Sandbox]
-        LLM[Gemini 2.5 Flash]
+    subgraph Data
         DB[PostgreSQL]
-        REDIS[Redis Cache]
+        REDIS[Redis]
     end
 
-    FE -->|HTTP REST| API
-    FE -->|WebSocket| WS
+    subgraph External
+        LK[LiveKit Server]
+        GEMINI[Gemini API]
+        DOCKER[Docker Sandbox]
+    end
+
+    FE -->|REST| API
+    FE -->|WebSocket| API
     FE -->|WebRTC| LK
     API -->|SQL| DB
-    API -->|Cache| REDIS
-    API -->|LangGraph| ORCH
-    ORCH -->|API| LLM
-    ORCH -->|Docker| SB
-    AI -->|API| LLM
+    API -->|Pub-Sub / Queue| REDIS
+    WORKER -->|Reads queue| REDIS
+    WORKER -->|Writes results| DB
+    API -->|Streaming| GEMINI
+    WORKER -->|Evaluation| GEMINI
+    API -->|Execute code| DOCKER
+    API -->|Tokens| LK
 ```
 
-### Core Components
+## Tech Stack
 
-| Component        | Technology        | Purpose                               |
-| ---------------- | ----------------- | ------------------------------------- |
-| **Orchestrator** | LangGraph         | State machine managing interview flow |
-| **AI Service**   | Google Gemini     | Chat, code review, evaluation         |
-| **LLM**          | Gemini 2.5 Flash  | Question generation, decision making  |
-| **Sandbox**      | Docker            | Isolated code execution               |
-| **Database**     | PostgreSQL        | Interview state, checkpoints          |
-| **Cache**        | Redis             | State caching, session management     |
-| **Realtime**     | WebSocket/LiveKit | Live session sync and video/audio     |
+| Layer | Technology |
+|-------|-----------|
+| **Backend** | Python 3.11, FastAPI, SQLAlchemy (async), Alembic, asyncpg |
+| **Queue** | Celery 5, Redis 7 |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 |
+| **Real-time** | WebSocket, Yjs (CRDT), LiveKit WebRTC |
+| **AI** | Google Gemini 2.5 Flash |
+| **Database** | PostgreSQL 15 |
+| **Code Execution** | Docker sandboxed containers |
+| **Deployment** | Render (backend + Celery worker), Vercel (frontend) |
+| **CI/CD** | GitHub Actions |
 
-## How It Works
+## Features
 
-### Interview Flow
+### Core
+- JWT authentication — Candidate, Interviewer, Admin roles
+- Resume upload with AI-powered extraction
+- Coding problem library with AI generation (Gemini)
+- Interview scheduling with candidate assignment
+- Shared Monaco editor — Yjs CRDT, live cursors, instant sync
+- Code execution in Docker sandboxed containers
+- AI chat assistant (SSE streaming) during interviews
+- AI cheating detection (tab switching, large paste events)
+- Voice & video — LiveKit WebRTC
+- Invite system — unique token link + 6-char room code
+- Post-interview AI evaluation (technical, code quality, communication, problem-solving, overall)
+- Analytics dashboard — skill progression charts, evaluation history
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant A as API
-    participant WS as WebSocket
-    participant O as Orchestrator
-    participant LLM as Gemini 2.5 Flash
-
-    U->>F: Start Interview
-    F->>A: POST /interviews
-    F->>WS: Connect WebSocket
-    A->>O: Initialize
-    O->>LLM: Generate Greeting
-    LLM->>O: Response
-    O->>A: next_message
-    A->>WS: Broadcast to Client
-    WS->>U: See/Hear Greeting
-
-    loop Conversation
-        U->>A: Send Message
-        A->>O: execute_step
-        O->>LLM: Detect Intent
-        O->>LLM: Decide Next Action
-        O->>LLM: Generate Response
-        O->>A: Response
-        A->>WS: Broadcast
-        WS->>U: Receive Response
-    end
-```
-
-### State Management
-
-- **LangGraph MemorySaver**: In-memory state per interview (`thread_id`)
-- **Database Checkpoints**: Persistent state after each turn
-- **Reducers**: Append-only fields (conversation_history, questions_asked)
-- **Single Writer**: Critical fields (next_message, phase) written by one node
-
-## Current Performance
-
-### Strengths
-
-- ✅ **Real-time sync** via WebSocket per interview room
-- ✅ **State persistence** via checkpoints
-- ✅ **Concurrent interviews** (isolated by thread_id)
-- ✅ **Code execution** in isolated Docker containers
-- ✅ **Comprehensive feedback** with skill breakdowns
+### Bonus Features
+- **Queue Workers** — Celery + Redis; AI evaluation runs async, API returns 202 instantly
+- **Screen Sharing** — `getDisplayMedia` + LiveKit screen track publishing
+- **Load Balancing Simulation** — Redis heartbeat per instance, Admin dashboard with simulate-failure
+- **Collaborative Debugging** — Yjs-synced breakpoints on Monaco gutter, per-author colors, inline comments
 
 ## Project Structure
 
 ```
-SomPheas/
-├── src/                    # Backend (Python/FastAPI)
-│   ├── api/               # REST API implementation
-│   │   └── v1/
-│   │       └── endpoints/ # Endpoints: interviews, resumes, ai, code, sandbox, websocket
-│   ├── core/              # Configuration, database, and authentication utilities
-│   ├── models/            # Database models for core entities
-│   ├── schemas/           # Pydantic schemas for data validation
-│   └── services/          # Business logic and subsystems
-│       ├── ai/            # Gemini AI chat, code review, and evaluation
-│       ├── analysis/      # Interview response and code analysis
-│       ├── analytics/     # Analytics functionality
-│       ├── data/          # Checkpointing and state management
-│       ├── execution/     # Secure code sandboxing
-│       ├── interviews/    # Interview business logic
-│       ├── logging/       # Interview activity logging
-│       ├── orchestrator/  # State orchestration using LangGraph
-│       └── websocket/     # Real-time connection management
-├── frontend/              # Frontend (Next.js + React)
-│   ├── app/              # App routing and authentication
-│   ├── components/       # UI components (interview, analytics, UI kit)
-│   ├── lib/              # API client and store utilities
-│   └── hooks/            # Custom React hooks
-├── docs/                  # Documentation and guides
-├── alembic/               # Database migration scripts
-├── docker-compose.yml     # Local dev orchestration
-├── Dockerfile             # Production build configuration
-└── pyproject.toml         # Backend dependencies and settings
+InterviewLab/
+├── src/
+│   ├── api/v1/endpoints/     # auth, interviews, problems, ai, analytics, code, system, websocket
+│   ├── models/               # User, Interview, Resume, Problem, AIEvaluation, ...
+│   ├── services/             # AI service, orchestrator, code execution, resume parsing
+│   ├── workers/              # Celery app + background tasks
+│   └── core/                 # Database, config, security
+├── frontend/
+│   ├── app/                  # Next.js App Router pages
+│   ├── components/           # UI components (interview room, editor, analytics, ...)
+│   ├── hooks/                # useYjsEditor, useLiveKitRoom, ...
+│   └── lib/                  # API clients, stores, utils
+├── docs/                     # Architecture, API, deployment, user guide
+├── nginx/                    # Load balancing config
+├── docker-compose.yml
+├── docker-compose.lb.yml     # Multi-instance load balancing
+└── .github/workflows/        # CI/CD pipeline
 ```
-
-## Documentation
-
-- [Architecture](docs/ARCHITECTURE.md) - System architecture and component relationships
-- [API Reference](docs/API.md) - REST API endpoints
-- [Frontend](docs/FRONTEND.md) - Next.js frontend architecture and development
-- [User Guide](docs/USER_GUIDE.md) - How to use SomPheas
-- [Local Development](docs/LOCAL_DEVELOPMENT.md) - Setup and development workflow
-- [LangGraph Guide](docs/LANGGRAPH.md) - State, nodes, and orchestration
-- [Deployment](docs/DEPLOYMENT.md) - Railway and Vercel deployment
 
 ## Quick Start
 
+See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for full setup.
+
 ```bash
+# Clone
+git clone https://github.com/M0nGKol/SomPheas-AI-Interviewer
+cd InterviewLab
+
 # Backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env        # fill in DATABASE_URL, REDIS_URL, GEMINI_API_KEY, etc.
+alembic upgrade head
 uvicorn src.main:app --reload
 
+# Celery worker (separate terminal)
+celery -A src.workers.celery_app worker --loglevel=info
+
 # Frontend
-cd frontend
-npm install
+cd frontend && npm install
+cp .env.local.example .env.local
 npm run dev
 ```
 
-See [Local Development](docs/LOCAL_DEVELOPMENT.md) for detailed setup.
+## Deployment
 
-## Tech Stack
+Backend → Render, Frontend → Vercel. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-### Backend
+## Documentation
 
-- **FastAPI** - Modern async web framework
-- **Python 3.11+** - Programming language
-- **LangGraph** - State machine orchestration
-- **SQLAlchemy 2.0+** - ORM with async support
-- **Alembic** - Database migrations
-- **Google Gemini 2.5 Flash** - LLM for AI conversations and evaluation
-- **google-genai** - Official Gemini SDK
-- **LiveKit** - Real-time video/audio infrastructure
-- **PostgreSQL** - Primary database
-- **Redis** - Caching and state management
-- **Docker** - Code sandbox execution
-
-### Frontend
-
-- **Next.js 16.1** - React framework
-- **TypeScript 5.0+** - Type safety
-- **React 19.2** - UI library
-- **Tailwind CSS 4** - Styling
-- **Zustand** - State management
-- **TanStack Query** - Data fetching
-- **Monaco Editor** - Code editor
-- **Framer Motion** - Animations
-- **LiveKit Client** - WebRTC integration
-
-### Deployment
-
-- **Render** - Backend hosting
-- **Vercel** - Frontend hosting
-
-## License
-
-GNU General Public License v3.0
+| Doc | Description |
+|-----|-------------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and component overview |
+| [docs/API.md](docs/API.md) | REST API reference |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Render + Vercel deployment guide |
+| [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) | Local setup guide |
+| [docs/FRONTEND.md](docs/FRONTEND.md) | Frontend architecture |
+| [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | End-user guide |
+| [docs/NFRs.md](docs/NFRs.md) | Non-functional requirements |

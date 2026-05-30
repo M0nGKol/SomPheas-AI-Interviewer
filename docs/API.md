@@ -1,253 +1,310 @@
 # API Reference
 
-Base URL: `https://api.sompheas.com/api/v1`
+**Base URL:** `https://your-api.onrender.com/api/v1`
 
-Authentication: Bearer token in `Authorization` header
+**Authentication:** `Authorization: Bearer <token>` on all protected routes.
 
-## Endpoints Overview
+Interactive docs available at `/docs` (Swagger UI) and `/redoc`.
 
-| Category       | Endpoints                       | Description                    |
-| -------------- | ------------------------------- | ------------------------------ |
-| **Auth**       | `/auth/register`, `/auth/login` | User authentication            |
-| **Interviews** | `/interviews/*`                 | Interview lifecycle management |
-| **Sandbox**    | `/sandbox/*`                    | Code execution and submission  |
-| **Voice**      | `/voice/*`                      | LiveKit tokens, TTS, STT       |
-| **Resumes**    | `/resumes/*`                    | Resume upload and analysis     |
+---
+
+## Auth
+
+### Register
+```http
+POST /auth/register
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "password": "secret",
+  "full_name": "Jane Doe",
+  "role": "CANDIDATE"   // CANDIDATE | INTERVIEWER | ADMIN
+}
+```
+
+### Login
+```http
+POST /auth/login
+Content-Type: application/x-www-form-urlencoded
+
+username=user@example.com&password=secret
+```
+**Response:** `{ "access_token": "...", "token_type": "bearer" }`
+
+### Get Current User
+```http
+GET /auth/me
+Authorization: Bearer <token>
+```
+
+---
 
 ## Interviews
 
-### Create Interview
-
+### List Interviews
 ```http
-POST /interviews/
-Content-Type: application/json
+GET /interviews
 Authorization: Bearer <token>
+```
+
+### Create Interview
+```http
+POST /interviews
+Authorization: Bearer <token>
+Content-Type: application/json
 
 {
-  "title": "Senior Python Engineer Interview",
-  "resume_id": 123,
-  "job_description": "Looking for senior Python engineer..."
+  "title": "Senior Backend Engineer",
+  "problem_id": 1,          // optional
+  "resume_id": 2,           // optional
+  "job_description": "..."  // optional
 }
 ```
 
-**Response:**
+### Get Interview
+```http
+GET /interviews/{id}
+Authorization: Bearer <token>
+```
 
-```json
-{
-  "id": 456,
-  "title": "Senior Python Engineer Interview",
-  "status": "pending",
-  "created_at": "2024-01-15T10:00:00Z"
-}
+### Get by Room Code
+```http
+GET /interviews/code/{room_code}
+Authorization: Bearer <token>
 ```
 
 ### Start Interview
-
 ```http
 POST /interviews/{id}/start
 Authorization: Bearer <token>
 ```
 
-**Response:**
-
-```json
-{
-  "interview_id": 456,
-  "room_name": "interview-456",
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "url": "wss://livekit.example.com"
-}
-```
-
-### Submit Code
-
+### End Interview
 ```http
-POST /interviews/{id}/submit-code
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "code": "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)",
-  "language": "python"
-}
-```
-
-**Response:**
-
-```json
-{
-  "message": "Code submitted successfully",
-  "execution_result": {
-    "stdout": "",
-    "stderr": "",
-    "exit_code": 0
-  }
-}
-```
-
-### Get Interview State
-
-```http
-GET /interviews/{id}/state
+POST /interviews/{id}/end
 Authorization: Bearer <token>
 ```
 
-**Response:**
-
-```json
-{
-  "interview_id": 456,
-  "turn_count": 5,
-  "phase": "technical",
-  "conversation_history": [...],
-  "questions_asked": [...],
-  "code_submissions": [...]
-}
-```
-
-### Complete Interview
-
+### Generate Invite Link
 ```http
-POST /interviews/{id}/complete
+POST /interviews/{id}/invite
 Authorization: Bearer <token>
 ```
-
-**Response:**
-
-```json
-{
-  "interview_id": 456,
-  "status": "completed",
-  "feedback": {
-    "overall_score": 0.85,
-    "communication_score": 0.90,
-    "technical_score": 0.80,
-    "problem_solving_score": 0.85,
-    "code_quality_score": 0.75,
-    "skill_breakdown": {...}
-  }
-}
-```
-
-## Sandbox
-
-### Execute Code
-
-```http
-POST /sandbox/execute
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "code": "print('Hello, World!')",
-  "language": "python",
-  "timeout_seconds": 30
-}
-```
-
-**Response:**
-
-```json
-{
-  "stdout": "Hello, World!\n",
-  "stderr": "",
-  "exit_code": 0,
-  "execution_time_ms": 150
-}
-```
-
-### Submit Code to Interview
-
-```http
-POST /interviews/{id}/submit-code
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "code": "def solve(): ...",
-  "language": "python"
-}
-```
-
-## Voice
+**Response:** `{ "invite_token": "abc123", "invite_url": "https://..." }`
 
 ### Get LiveKit Token
-
 ```http
-POST /voice/token
-Content-Type: application/json
+POST /interviews/{id}/livekit-token
 Authorization: Bearer <token>
+```
+**Response:** `{ "token": "...", "url": "wss://..." }`
+
+---
+
+## Problems
+
+### List Problems
+```http
+GET /problems
+Authorization: Bearer <token>
+```
+
+### Create Problem
+```http
+POST /problems
+Authorization: Bearer <token>
+Content-Type: application/json
 
 {
-  "room_name": "interview-456",
-  "participant_name": "John Doe",
-  "can_publish": true,
-  "can_subscribe": true
+  "title": "Two Sum",
+  "description": "Given an array...",
+  "difficulty": "EASY",    // EASY | MEDIUM | HARD
+  "language": "python",
+  "starter_code": "def two_sum(nums, target):\n    pass"
 }
 ```
 
-**Response:**
+### AI Generate Problem
+```http
+POST /problems/generate
+Authorization: Bearer <token>
+Content-Type: application/json
 
+{
+  "prompt": "A graph traversal problem, medium difficulty, Python"
+}
+```
+
+---
+
+## AI
+
+### Chat (Streaming SSE)
+```http
+POST /ai/chat
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "interview_id": 1,
+  "message": "Can you give me a hint?"
+}
+```
+**Response:** `text/event-stream` — streams tokens as `data: <chunk>\n\n`
+
+### Trigger Evaluation
+```http
+POST /ai/evaluate
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "interview_id": 1
+}
+```
+**Response:** `202 Accepted` — evaluation queued as Celery background task.
+
+---
+
+## Analytics
+
+### Overview
+```http
+GET /analytics/overview
+Authorization: Bearer <token>
+```
+
+### Interview Evaluation
+```http
+GET /analytics/interviews/{id}
+Authorization: Bearer <token>
+```
+**Response:**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "room_name": "interview-456",
-  "url": "wss://livekit.example.com"
+  "technical_score": 82,
+  "code_quality_score": 75,
+  "communication_score": 90,
+  "problem_solving_score": 78,
+  "overall_score": 81,
+  "strengths": ["Clear communication", "Efficient algorithm"],
+  "weaknesses": ["Edge case handling"],
+  "feedback_summary": "..."
 }
 ```
 
-### Text-to-Speech
+---
 
+## Code Execution
+
+### Execute Code
 ```http
-POST /voice/tts
-Content-Type: application/json
+POST /code/execute
 Authorization: Bearer <token>
+Content-Type: application/json
 
 {
-  "text": "Hello, welcome to your interview!",
-  "voice": "alloy",
-  "model": "tts-1-hd"
+  "code": "print('hello')",
+  "language": "python",    // python | javascript | java | go | cpp
+  "interview_id": 1
 }
 ```
-
 **Response:**
-
 ```json
 {
-  "audio_base64": "UklGRiQAAABXQVZFZm10...",
-  "text": "Hello, welcome to your interview!",
-  "voice": "alloy",
-  "model": "tts-1-hd"
+  "stdout": "hello\n",
+  "stderr": "",
+  "exit_code": 0,
+  "execution_time_ms": 142
 }
 ```
+
+---
+
+## Resumes
+
+### Upload Resume
+```http
+POST /resumes
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+file=<pdf>
+```
+
+### List Resumes
+```http
+GET /resumes
+Authorization: Bearer <token>
+```
+
+### Get Resume
+```http
+GET /resumes/{id}
+Authorization: Bearer <token>
+```
+
+---
+
+## System (Admin only)
+
+### Get Active Nodes
+```http
+GET /system/nodes
+Authorization: Bearer <admin-token>
+```
+**Response:**
+```json
+[
+  {
+    "node_id": "api-a1b2c3",
+    "status": "healthy",
+    "request_count": 142,
+    "cpu_usage": 23.4,
+    "memory_usage": 41.2,
+    "last_seen": "2026-05-30T10:00:00Z"
+  }
+]
+```
+
+### Kill Node (simulate failure)
+```http
+POST /system/nodes/{node_id}/kill
+Authorization: Bearer <admin-token>
+```
+
+---
+
+## WebSocket
+
+### Connect to Interview Room
+```
+WS /ws/{interview_id}?token=<jwt>
+```
+
+**Message types (JSON):**
+
+| type | Direction | Description |
+|------|-----------|-------------|
+| `yjs_update` | both | Binary Yjs document update (base64) |
+| `cursor` | both | Live cursor position `{ user, line, col }` |
+| `chat` | both | AI chat message |
+| `code_run` | client→server | Trigger code execution |
+| `code_result` | server→client | Execution output |
+| `cheating_alert` | server→client | Suspicious activity detected |
+| `participant_joined` | server→client | User joined the room |
+| `participant_left` | server→client | User left the room |
+
+---
 
 ## Error Responses
 
-All errors follow this format:
-
-```json
-{
-  "detail": "Error message",
-  "status_code": 400
-}
-```
-
-### Common Status Codes
-
-| Code | Meaning               |
-| ---- | --------------------- |
-| 200  | Success               |
-| 201  | Created               |
-| 400  | Bad Request           |
-| 401  | Unauthorized          |
-| 404  | Not Found             |
-| 500  | Internal Server Error |
-
-## Rate Limits
-
-| Endpoint           | Limit              |
-| ------------------ | ------------------ |
-| `/interviews/*`    | 10 requests/minute |
-| `/sandbox/execute` | 20 requests/minute |
-| `/voice/tts`       | 30 requests/minute |
-
+| Status | Meaning |
+|--------|---------|
+| `400` | Validation error — check request body |
+| `401` | Missing or invalid token |
+| `403` | Insufficient role permissions |
+| `404` | Resource not found |
+| `422` | Unprocessable entity (Pydantic validation) |
+| `500` | Internal server error |

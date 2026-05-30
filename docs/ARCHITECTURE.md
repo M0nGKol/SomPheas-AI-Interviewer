@@ -1,187 +1,156 @@
-# SomPheas Architecture
+# InterviewLab Architecture
 
 ## System Overview
 
-SomPheas is a voice-based technical interview platform using LangGraph for orchestration and LiveKit for real-time communication.
-
-The system connects a Next.js frontend to a FastAPI backend, which coordinates with LiveKit for real-time voice communication. The LiveKit agent bridges voice streams to the LangGraph orchestrator, which manages interview state and generates responses using GPT-4o-mini.
+InterviewLab is a real-time technical interview platform. An interviewer and candidate join a shared live room with a collaborative code editor, voice/video, and an AI assistant. After the session, a background worker evaluates the candidate automatically.
 
 ```mermaid
 graph TB
-    Frontend[Frontend React App] -->|HTTP REST| API[FastAPI Backend]
-    Frontend -->|WebSocket| LiveKit[LiveKit Server]
-    API -->|HTTP| LiveKit
+    FE[Next.js Frontend] -->|REST API| API[FastAPI Backend]
+    FE -->|WebSocket| API
+    FE -->|WebRTC| LK[LiveKit Server]
     API -->|SQL| DB[PostgreSQL]
-    API -->|Cache| Redis[Redis]
-    LiveKit -->|WebSocket| Agent[LiveKit Agent]
-    Agent -->|LangGraph| Orchestrator[Interview Orchestrator]
-    Orchestrator -->|OpenAI API| LLM[GPT-4o-mini]
-    Orchestrator -->|Docker| Sandbox[Code Sandbox]
-    Agent -->|OpenAI API| TTS[Text-to-Speech]
-    Agent -->|OpenAI API| STT[Speech-to-Text]
+    API -->|Pub-Sub / Cache| REDIS[Redis]
+    API -->|Enqueue task| REDIS
+    WORKER[Celery Worker] -->|Dequeue| REDIS
+    WORKER -->|Write evaluation| DB
+    API -->|Streaming chat| GEMINI[Gemini API]
+    WORKER -->|Evaluation| GEMINI
+    API -->|Execute code| DOCKER[Docker Sandbox]
+    API -->|Issue tokens| LK
 ```
 
-The frontend establishes two connections: REST for interview management and WebSocket for real-time voice. The agent bootstraps resources before connecting to meet LiveKit's <100ms handshake requirement, then bridges voice streams to the orchestrator via a custom LLM adapter that translates LangGraph state updates into agent responses.
+---
 
 ## Core Components
 
-### 1. LangGraph Orchestrator (`src/services/orchestrator/`)
+### 1. FastAPI Backend (`src/`)
 
-State machine managing interview flow using LangGraph's StateGraph.
+Async REST + WebSocket server. All DB and I/O operations use `async/await` with `asyncpg`.
 
-**Key Files:**
+**API groups (`src/api/v1/endpoints/`):**
 
-- `langgraph_orchestrator.py` - Main orchestrator class
-- `graph.py` - Graph definition with nodes and edges
-- `nodes.py` - NodeHandler combining action/control mixins
-- `types.py` - InterviewState TypedDict schema
-- `control_nodes.py` - Flow control (initialize, detect_intent, decide_next_action)
-- `action_nodes.py` - Response generation (greeting, question, followup, code_review, etc.)
+| Router | Prefix | Responsibility |
+|--------|--------|----------------|
+| `auth` | `/auth` | Register, login, JWT |
+| `interviews` | `/interviews` | CRUD, invite, start, end |
+| `problems` | `/problems` | Problem library + AI generation |
+| `ai` | `/ai` | Streaming chat, trigger evaluation |
+| `analytics` | `/analytics` | Skill scores, evaluation history |
+| `code` | `/code` | Sandboxed code execution |
+| `system` | `/system` | Node heartbeats, admin dashboard |
+| `websocket` | `/ws` | Real-time collaboration channel |
 
-### 2. LiveKit Agent (`src/agents/`)
+### 2. Real-Time Collaboration
 
-Real-time voice agent handling STT/TTS and orchestrator integration.
+WebSocket connections are scoped per interview room. Messages fan out via **Redis pub-sub** so multiple API instances stay in sync.
 
-**Key Files:**
+Yjs (CRDT) handles the shared document state:
+- Code editor content — synced via `y-monaco`
+- Live cursors — per-user awareness protocol
+- Breakpoints — `Y.Map<string>` shared across participants
+- Binary Yjs state stored in PostgreSQL (`yjs_state` column) so late-joining users get full document history instantly
 
-- `interview_agent.py` - Agent entrypoint and lifecycle
-- `orchestrator_llm.py` - Custom LLM adapter for orchestrator
-- `resources.py` - Resource bootstrap and cleanup
+### 3. Celery Worker (`src/workers/`)
 
-### 3. Analysis Services (`src/services/analysis/`)
+Handles AI evaluation as a background task so the interview ends immediately without blocking.
 
-- `response_analyzer.py` - Analyzes candidate answers
-- `code_analyzer.py` - Code quality analysis
-- `feedback_generator.py` - Comprehensive feedback generation
-
-### 4. Execution Services (`src/services/execution/`)
-
-- `sandbox_service.py` - Docker-based code execution
-
-## LangGraph Flow
-
-```mermaid
-stateDiagram-v2
-    [*] --> ingest_input
-    ingest_input --> greeting: First turn
-    ingest_input --> code_review: Code submitted
-    ingest_input --> detect_intent: Normal flow
-    detect_intent --> decide_next_action
-    decide_next_action --> greeting: greeting
-    decide_next_action --> question: question
-    decide_next_action --> followup: followup
-    decide_next_action --> sandbox_guidance: sandbox_guidance
-    decide_next_action --> code_review: code_review
-    decide_next_action --> evaluation: evaluation
-    decide_next_action --> closing: closing
-    greeting --> finalize_turn
-    question --> finalize_turn
-    followup --> finalize_turn
-    sandbox_guidance --> finalize_turn
-    code_review --> finalize_turn
-    evaluation --> finalize_turn
-    closing --> finalize_turn
-    finalize_turn --> [*]
+```
+POST /ai/evaluate  →  evaluate_interview_task.delay(interview_id)  →  202 Accepted
+                                    ↓
+                          Celery worker picks up task
+                                    ↓
+                     Calls Gemini, saves AIEvaluation row
+                                    ↓
+                        Interview status → COMPLETED
 ```
 
-All external inputs funnel through `ingest_input`, which prevents state mutations at graph boundaries. The `route_from_ingest` function checks conversation history to avoid duplicate greetings on reconnects, then routes based on turn count and code presence. `decide_next_action` uses structured LLM output to set `next_node`, which `route_action_node` reads for deterministic routing. Every action node converges on `finalize_turn`, which atomically writes `conversation_history` and checkpoints state.
+Falls back to synchronous evaluation if Celery is unavailable.
 
-## Agent Lifecycle
+### 4. AI Service (`src/services/`)
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant LiveKit
-    participant Agent
-    participant Orchestrator
-    participant DB
+- **Chat** — streams Gemini responses via SSE during the interview
+- **Evaluation** — sends full conversation history + code snapshots to Gemini, receives structured scores (technical, code quality, communication, problem-solving, overall)
+- **Problem generation** — generates coding problems from a prompt
+- **Resume extraction** — parses uploaded PDFs and extracts structured candidate data
 
-    Client->>LiveKit: Connect to room
-    LiveKit->>Agent: JobContext room metadata
-    Agent->>Agent: Bootstrap resources DB TTS STT VAD
-    Agent->>Orchestrator: Initialize orchestrator
-    Agent->>LiveKit: Connect handshake
-    LiveKit->>Client: Agent ready
+### 5. Code Execution (`src/services/execution/`)
 
-    loop Interview Loop
-        Client->>LiveKit: User speaks
-        LiveKit->>Agent: Audio stream STT
-        Agent->>Orchestrator: Execute step user_response
-        Orchestrator->>Orchestrator: LangGraph execution
-        Orchestrator->>DB: Checkpoint state
-        Orchestrator->>Agent: Response message
-        Agent->>LiveKit: TTS audio stream
-        LiveKit->>Client: Agent speaks
-    end
+Runs candidate code inside isolated Docker containers with:
+- Per-language images (Python, JavaScript, Java, Go, C++)
+- Timeout enforcement
+- Stdout/stderr capture
+- No network access inside container
 
-    Client->>LiveKit: End interview
-    Agent->>Orchestrator: Cleanup interview
-    Agent->>DB: Final state save
+### 6. LiveKit Integration
+
+- Issues room tokens from `POST /interviews/{id}/livekit-token`
+- Frontend uses `@livekit/components-react` for voice/video UI
+- Screen sharing: `getDisplayMedia()` → publish as `Track.Source.ScreenShare`
+- Screen track published to all room participants automatically
+
+### 7. Load Balancing Simulation
+
+Each API instance writes a heartbeat to Redis every request:
+
+```
+SET node:heartbeat:{INSTANCE_ID}  {json}  EX 30
 ```
 
-The agent follows a two-phase bootstrap: extract interview_id from room name, then bootstrap all resources before `ctx.connect()`. This ensures the agent is ready before the handshake completes, preventing the frontend from showing an uninitialized participant. Heavy imports (database, orchestrator, TTS/STT) are deferred until after metadata extraction. VAD is required for OpenAI's non-streaming STT to detect speech boundaries. The agent monitors interview status every 5 seconds and triggers cleanup when status becomes "completed".
+`GET /system/nodes` reads all `node:heartbeat:*` keys. `POST /system/nodes/{id}/kill` deletes the key, removing the node from the pool. The Admin dashboard polls every 5 seconds.
 
-## State Management
+---
 
-**InterviewState** (TypedDict) contains:
+## Data Flow: Interview Session
 
-- **Append-only fields** (reducers): `conversation_history`, `questions_asked`, `detected_intents`, `code_submissions`
-- **Single-writer fields**: `next_message`, `phase`, `last_node`
-- **Sandbox state**: Code execution tracking
-- **Topics covered**: Simple list (no complex tracking)
-
-**Checkpointing:**
-
-- LangGraph MemorySaver: In-memory per `thread_id`
-- Database: Persistent checkpoints via `CheckpointService`
-- Redis: Optional caching layer
-
-## Key Design Decisions
-
-1. **LangGraph StateGraph**: Explicit edges, no mutations, reducers for append-only fields
-2. **LLM-only decisions**: Removed heuristics, trust LLM for flow control
-3. **Simplified resume tracking**: Topics list instead of complex anchor/aspect system
-4. **Single entry point**: `ingest_input_node` for all external data
-5. **Resource cleanup**: Explicit cleanup to prevent memory leaks
-
-## Data Flow: User Response
-
-```mermaid
-flowchart LR
-    A[User speaks] -->|STT| B[OrchestratorLLM]
-    B -->|execute_step| C[LangGraph]
-    C -->|ingest_input| D[detect_intent]
-    D -->|LLM| E[decide_next_action]
-    E -->|LLM| F[Action Node]
-    F -->|LLM| G[finalize_turn]
-    G -->|Checkpoint| H[Database]
-    G -->|Response| I[TTS]
-    I -->|Audio| J[User hears]
+```
+1. Interviewer creates interview → POST /interviews
+2. Interviewer invites candidate → POST /interviews/{id}/invite  (generates invite_token)
+3. Candidate opens invite link → GET /join/{inviteCode} → POST /interviews/{id}/join
+4. Both request LiveKit tokens → POST /interviews/{id}/livekit-token
+5. Both connect to WebSocket → WS /ws/{interview_id}
+6. Yjs syncs editor state → Redis pub-sub fans out to all connections
+7. AI chat → POST /ai/chat (SSE stream)
+8. Code run → POST /code/execute (Docker)
+9. Interview ends → POST /interviews/{id}/end
+10. Evaluation task queued → Celery worker picks up, saves AIEvaluation
 ```
 
-The `OrchestratorLLM` adapter wraps the orchestrator, translating agent callbacks into `execute_step` invocations. It loads state from the database checkpoint, passes user input through the graph, then extracts `next_message` from the updated state. The adapter handles thread*id isolation (`interview*{interview_id}`) so concurrent interviews don't leak state. Each graph execution is atomic: state updates, checkpoint writes, and response generation happen in a single transaction.
+---
 
-## Code Submission Flow
+## Database Schema
 
 ```mermaid
-sequenceDiagram
-    participant Frontend
-    participant API
-    participant DB
-    participant Agent
-    participant Orchestrator
-
-    Frontend->>API: POST submit-code
-    API->>DB: Save code to interview
-    API->>DB: Update conversation_history
-    Frontend->>Agent: User speaks I submitted code
-    Agent->>Orchestrator: execute_step code
-    Orchestrator->>Orchestrator: route_from_ingest to code_review
-    Orchestrator->>Orchestrator: Execute code in sandbox
-    Orchestrator->>Orchestrator: Analyze code quality
-    Orchestrator->>DB: Save results
-    Orchestrator->>Agent: Code review response
-    Agent->>Frontend: TTS audio
+erDiagram
+    users ||--o{ interviews : "has (as candidate)"
+    users ||--o{ interviews : "conducts (as interviewer)"
+    users ||--o{ resumes : uploads
+    interviews ||--o{ ai_evaluations : generates
+    interviews ||--o{ messages : contains
+    interviews ||--o{ code_snapshots : tracks
+    interviews }o--|| problems : uses
+    interviews }o--o| resumes : references
+    problems }o--|| users : "created_by"
 ```
 
-Code submissions are saved to the database first, then the user's voice message triggers the orchestrator with `current_code` set. The `route_from_ingest` function detects `current_code` and bypasses intent detection, routing directly to `code_review`. The sandbox service executes code in isolated Docker containers, and `get_code_metrics` analyzes quality using AST parsing and complexity metrics. Results are appended to `code_submissions` via reducer, ensuring atomic updates even with concurrent state modifications.
+| Table | Key Columns |
+|-------|-------------|
+| `users` | id, email, hashed_password, role, is_active |
+| `resumes` | id, user_id, file_path, extracted_data (JSON), analysis_status |
+| `problems` | id, title, description, difficulty, language, starter_code, test_cases |
+| `interviews` | id, user_id, interviewer_id, problem_id, status, language, current_code, yjs_state, invite_token, room_code, conversation_history (JSON) |
+| `ai_evaluations` | id, interview_id, technical_score, code_quality_score, communication_score, problem_solving_score, overall_score, strengths (JSON), weaknesses (JSON), feedback_summary |
+| `messages` | id, interview_id, role, content, created_at |
+| `code_snapshots` | id, interview_id, code, language, created_at |
+| `sandbox_sessions` | id, interview_id, container_id, language, status |
+| `session_events` | id, interview_id, event_type, data (JSON), created_at |
+
+---
+
+## Security
+
+- **JWT** — HS256 tokens, 30-minute expiry, injected via Axios interceptors on the frontend
+- **Role-based access** — CANDIDATE, INTERVIEWER, ADMIN enforced per endpoint
+- **Docker sandboxing** — code execution isolated with no network, resource limits
+- **WebSocket auth** — token validated on connection upgrade
+- **Deploy hooks** — Render deploy keys scoped per service, stored as GitHub Actions secrets
