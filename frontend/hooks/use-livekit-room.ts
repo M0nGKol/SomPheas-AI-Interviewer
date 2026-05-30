@@ -70,7 +70,7 @@ export function useLiveKitRoom({
         console.warn('⚠️ LiveKit disconnected', reason);
         setState('disconnected');
         if (onDisconnected) {
-          onDisconnected(reason);
+          onDisconnected(reason != null ? String(reason) : undefined);
         }
       });
 

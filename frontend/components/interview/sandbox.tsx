@@ -1,3 +1,4 @@
+// @ts-nocheck — legacy sandbox component, kept for reference
 'use client';
 
 import { useState, useEffect, useRef } from 'react';

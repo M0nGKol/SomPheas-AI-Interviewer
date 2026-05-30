@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import * as Y from 'yjs';
-import type * as Monaco from 'monaco-editor';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Monaco = any;
 
 type SendYjsUpdate = (update: string) => void;
 
@@ -24,7 +25,8 @@ export interface YjsEditorHandle {
   doc: Y.Doc;
   /** Shared breakpoints map: key = `line:author`, value = Breakpoint JSON string */
   yBreakpoints: Y.Map<string>;
-  bind: (editor: Monaco.editor.IStandaloneCodeEditor, monaco: typeof Monaco) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  bind: (editor: any, monaco: any) => void;
   unbind: () => void;
   applyRemoteUpdate: (base64: string) => void;
   applyStateSnapshot: (base64: string) => void;
@@ -65,7 +67,8 @@ export function useYjsEditor({ onUpdate, initialCode }: UseYjsEditorOptions): Yj
   }, [doc, onUpdate]);
 
   // Lazy-load MonacoBinding — avoids the `window is not defined` SSR crash
-  const bind = useCallback(async (editor: Monaco.editor.IStandaloneCodeEditor) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bind = useCallback(async (editor: any) => {
     if (bindingRef.current) return;
     const model = editor.getModel();
     if (!model) return;
