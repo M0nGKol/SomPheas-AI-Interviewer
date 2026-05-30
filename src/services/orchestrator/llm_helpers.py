@@ -10,7 +10,6 @@ from src.services.orchestrator.constants import (
     TEMPERATURE_CREATIVE,
     TEMPERATURE_BALANCED,
     TEMPERATURE_ANALYTICAL,
-    TEMPERATURE_QUESTION,
 )
 
 logger = logging.getLogger(__name__)

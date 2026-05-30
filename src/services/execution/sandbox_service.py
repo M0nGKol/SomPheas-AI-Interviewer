@@ -5,7 +5,6 @@ import logging
 import tarfile
 import io
 import uuid
-from pathlib import Path
 from typing import Optional, Dict, Any
 from enum import Enum
 
@@ -215,13 +214,12 @@ class SandboxService:
             # Wait for container with timeout
             try:
                 container.wait(timeout=timeout)
-            except Exception as e:
+            except Exception:
                 # Container timed out or error
                 container.kill()
                 raise
 
             # Get logs
-            logs = container.logs(stdout=True, stderr=True)
             stdout_logs = container.logs(stdout=True, stderr=False)
             stderr_logs = container.logs(stdout=False, stderr=True)
 
@@ -267,7 +265,6 @@ class SandboxService:
     ) -> ExecutionResult:
         """Fallback execution when Docker is not available (development only)."""
         import time
-        import subprocess
 
         start_time = time.time()
 

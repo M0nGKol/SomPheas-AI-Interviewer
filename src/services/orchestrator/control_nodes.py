@@ -6,18 +6,13 @@ decide_next_action, and finalize_turn.
 
 import logging
 import json
-from typing import TYPE_CHECKING
 from datetime import datetime
-from openai import AsyncOpenAI
 
 from src.services.orchestrator.types import InterviewState, NextActionDecision
-from src.services.orchestrator.context_builders import (
-    build_decision_context, build_conversation_context, build_resume_context
-)
+from src.services.orchestrator.context_builders import build_decision_context
 from src.services.orchestrator.constants import (
-    COMMON_SYSTEM_PROMPT,
     SUMMARY_UPDATE_INTERVAL, MAX_CONVERSATION_LENGTH_FOR_SUMMARY,
-    TEMPERATURE_ANALYTICAL, TEMPERATURE_BALANCED, DEFAULT_MODEL
+    TEMPERATURE_BALANCED
 )
 from src.services.orchestrator.intent_detection import detect_user_intent
 
@@ -121,11 +116,6 @@ class ControlNodeMixin:
             )
 
         decision_ctx = build_decision_context(state, self.interview_logger)
-
-        conversation_context = build_conversation_context(
-            state, self.interview_logger
-        )
-        resume_context = build_resume_context(state)
 
         answer_quality = 0.0
         if state.get("last_response") and state.get("current_question"):

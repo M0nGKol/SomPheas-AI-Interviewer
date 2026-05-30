@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.v1.router import api_router
-from src.core.config import settings
 from src.core.database import engine, Base
 from src.core.logging import setup_logging
 from src.services.websocket.connection_manager import manager as ws_manager

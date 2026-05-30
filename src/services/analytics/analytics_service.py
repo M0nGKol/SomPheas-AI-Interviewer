@@ -1,13 +1,10 @@
 """Service for interview analytics and metrics tracking with skill-specific analysis."""
 
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
-from collections import defaultdict
+from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from src.models.interview import Interview
-from src.models.user import User
 
 
 class InterviewAnalytics:

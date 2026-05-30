@@ -1,7 +1,7 @@
 """SandboxSession model — tracks code execution sessions per interview."""
 
 from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey, Integer
+from sqlalchemy import String, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 

@@ -1,7 +1,6 @@
 """Interview-related Pydantic schemas."""
 
 from typing import Optional, Any
-from datetime import datetime
 from pydantic import BaseModel, Field
 
 

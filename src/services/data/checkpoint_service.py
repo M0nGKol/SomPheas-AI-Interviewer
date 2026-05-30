@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from src.models.interview import Interview
 from src.services.orchestrator.types import InterviewState

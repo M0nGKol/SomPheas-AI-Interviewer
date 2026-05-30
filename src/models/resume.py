@@ -40,8 +40,8 @@ class Resume(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="resumes")
-    interviews: Mapped[list["Interview"]] = relationship(
+    user: Mapped["User"] = relationship("User", back_populates="resumes")  # noqa: F821
+    interviews: Mapped[list["Interview"]] = relationship(  # noqa: F821
         "Interview", back_populates="resume"
     )
 
