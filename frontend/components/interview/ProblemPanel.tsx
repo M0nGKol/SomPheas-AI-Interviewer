@@ -1,8 +1,10 @@
 'use client';
 
+import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Problem } from '@/lib/api/problems';
+import { renderMarkdown } from '@/lib/markdown';
 
 interface ProblemPanelProps {
   problem: Problem | null | undefined;
@@ -14,6 +16,7 @@ const DIFF_COLORS: Record<string, string> = {
   MEDIUM: 'bg-yellow-100 text-yellow-800 border-yellow-200',
   HARD:   'bg-red-100 text-red-800 border-red-200',
 };
+
 
 export function ProblemPanel({ problem, loading }: ProblemPanelProps) {
   if (loading) {
@@ -37,27 +40,43 @@ export function ProblemPanel({ problem, loading }: ProblemPanelProps) {
 
   return (
     <div className="p-4 space-y-4 h-full overflow-y-auto">
-      <div>
-        <div className="flex items-start gap-2 flex-wrap">
-          <h2 className="text-base font-semibold leading-tight">{problem.title}</h2>
-          <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full border font-medium ${DIFF_COLORS[problem.difficulty] ?? 'bg-gray-100 text-gray-700'}`}>
-            {problem.difficulty}
-          </span>
-          <Badge variant="outline" className="text-xs">{problem.language}</Badge>
-        </div>
+      {/* Title + badges */}
+      <div className="flex items-start gap-2 flex-wrap">
+        <h2 className="text-base font-semibold leading-tight">{problem.title}</h2>
+        <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full border font-medium ${DIFF_COLORS[problem.difficulty] ?? 'bg-gray-100 text-gray-700'}`}>
+          {problem.difficulty}
+        </span>
+        <Badge variant="outline" className="text-xs">{problem.language}</Badge>
       </div>
 
-      <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Description</h3>
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{problem.description}</p>
+      {/* Description — rendered markdown */}
+      <div className="space-y-1">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</h3>
+        <div>{renderMarkdown(problem.description ?? '')}</div>
       </div>
 
-      {problem.test_cases && (
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Test Cases</h3>
-          <pre className="bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto whitespace-pre-wrap">
-            {JSON.stringify(problem.test_cases, null, 2)}
-          </pre>
+      {/* Test cases — clean key/value view */}
+      {problem.test_cases && Array.isArray(problem.test_cases) && problem.test_cases.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Examples</h3>
+          {(problem.test_cases as Array<{ input: Record<string, unknown>; expected: unknown }>).map((tc, idx) => (
+            <div key={idx} className="rounded-md border bg-muted/40 p-3 text-xs font-mono space-y-1">
+              <div>
+                <span className="text-muted-foreground">Input:&nbsp;</span>
+                {Object.entries(tc.input).map(([k, v]) => (
+                  <span key={k} className="mr-2">
+                    <span className="text-blue-500">{k}</span>
+                    {' = '}
+                    <span>{JSON.stringify(v)}</span>
+                  </span>
+                ))}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Output:&nbsp;</span>
+                <span className="text-green-600">{JSON.stringify(tc.expected)}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

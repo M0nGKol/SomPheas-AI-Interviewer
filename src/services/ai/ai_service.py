@@ -1,7 +1,7 @@
 """AI chat service using Google Gemini (google-genai SDK)."""
 
 import logging
-from typing import Optional
+from typing import Optional, AsyncGenerator
 
 from src.core.config import settings
 
@@ -52,6 +52,32 @@ async def get_ai_chat_response(
     except Exception as e:
         logger.warning(f"Gemini chat error: {e}")
         return None
+
+
+async def get_ai_stream_response(
+    system_prompt: str,
+    user_prompt: str,
+    model: str | None = None,
+) -> AsyncGenerator[str, None]:
+    """Stream Gemini chat tokens. Yields text chunks as they arrive.
+    Falls back to yielding the full fallback response at once if AI is unavailable."""
+    client = _get_client()
+    if client is None:
+        yield get_fallback_chat_response()
+        return
+
+    model_name = model or getattr(settings, "GEMINI_MODEL", "gemini-2.5-flash")
+    try:
+        combined = f"{system_prompt}\n\n{user_prompt}"
+        async for chunk in await client.aio.models.generate_content_stream(
+            model=model_name,
+            contents=combined,
+        ):
+            if chunk.text:
+                yield chunk.text
+    except Exception as e:
+        logger.warning(f"Gemini stream error: {e}")
+        yield get_fallback_chat_response()
 
 
 async def get_ai_completion(prompt: str, model: str | None = None) -> Optional[str]:

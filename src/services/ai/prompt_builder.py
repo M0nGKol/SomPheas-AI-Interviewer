@@ -118,7 +118,26 @@ def build_evaluation_prompt(
             chat_section += f"[{m.get('sender_type', 'USER')}]: {m.get('content', '')[:300]}\n"
         chat_section += "\n"
 
-    return f"""{problem_section}{code_section}{results_section}{chat_section}
+    # Surface integrity flags so AI can mention them in feedback
+    integrity_section = ""
+    flag_events = [
+        e for e in session_events
+        if e.get("event_type") in ("PASTE_DETECTED", "SUSPICIOUS_ACTIVITY")
+    ]
+    if flag_events:
+        integrity_section = "⚠️ Integrity Flags (detected automatically):\n"
+        for fe in flag_events:
+            meta = fe.get("event_metadata") or {}
+            chars = meta.get("chars_added", "?")
+            integrity_section += (
+                f"- {fe['event_type']}: {chars} characters inserted at once\n"
+            )
+        integrity_section += (
+            "Note: these may indicate copy-paste from external sources. "
+            "Factor this into your assessment if relevant.\n\n"
+        )
+
+    return f"""{problem_section}{code_section}{results_section}{chat_section}{integrity_section}
 Evaluate this technical interview and respond with ONLY a JSON object (no markdown, no explanation):
 
 {{

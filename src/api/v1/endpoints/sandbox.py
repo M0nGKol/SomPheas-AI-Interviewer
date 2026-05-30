@@ -1,6 +1,9 @@
 """Sandbox endpoints for code execution."""
 
 import logging
+import uuid
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -8,6 +11,7 @@ from sqlalchemy import select
 from src.core.database import get_db
 from src.models.user import User
 from src.models.interview import Interview
+from src.models.sandbox_session import SandboxSession
 from src.api.v1.dependencies import get_current_user
 from src.schemas.sandbox import (
     CodeExecutionRequest,
@@ -105,20 +109,24 @@ async def create_session(
                 detail="Interview not found",
             )
 
-        # Generate session ID (in production, store in database)
-        import uuid
-        from datetime import datetime
-
         session_id = str(uuid.uuid4())
 
-        # TODO: Store session in database (create SandboxSession model)
-        # For now, return session info
+        # Persist the sandbox session
+        sandbox_session = SandboxSession(
+            session_uuid=session_id,
+            interview_id=request.interview_id,
+            user_id=user.id,
+            language=request.language,
+        )
+        db.add(sandbox_session)
+        await db.commit()
+        await db.refresh(sandbox_session)
 
         return SandboxSessionResponse(
             session_id=session_id,
             interview_id=request.interview_id,
             language=request.language,
-            created_at=datetime.utcnow().isoformat(),
+            created_at=sandbox_session.created_at.isoformat(),
         )
 
     except HTTPException:
@@ -136,16 +144,25 @@ async def submit_code(
     session_id: str,
     request: CodeSubmissionRequest,
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    """
-    Submit code for execution in a sandbox session.
-
-    Note: In production, verify session belongs to user and interview.
-    """
+    """Submit code for execution in a sandbox session."""
     try:
-        # TODO: Load session from database and verify ownership
-        # For now, use default language (python)
-        language = Language.PYTHON
+        # Load and verify session ownership
+        result = await db.execute(
+            select(SandboxSession).where(
+                SandboxSession.session_uuid == session_id,
+                SandboxSession.user_id == user.id,
+            )
+        )
+        sandbox_session = result.scalar_one_or_none()
+        if not sandbox_session:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sandbox session not found")
+
+        try:
+            language = Language(sandbox_session.language.lower())
+        except ValueError:
+            language = Language.PYTHON
 
         sandbox_service = get_sandbox_service()
         logger.info(f"User {user.id} submitting code to session {session_id}")

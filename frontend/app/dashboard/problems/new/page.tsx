@@ -12,9 +12,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Loader2, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, PlusCircle, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function NewProblemPage() {
   const router = useRouter();
@@ -33,6 +35,35 @@ export default function NewProblemPage() {
   const [testCasesRaw, setTestCasesRaw] = useState('');
   const [testCasesError, setTestCasesError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch(`${API_BASE}/api/v1/ai/generate-problem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ topic: aiTopic || 'data structures and algorithms', difficulty: form.difficulty }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setForm((prev) => ({
+        ...prev,
+        title: data.title || prev.title,
+        description: data.description || prev.description,
+        difficulty: (data.difficulty as ProblemCreate['difficulty']) || prev.difficulty,
+        starter_code: data.starter_code || prev.starter_code,
+      }));
+      toast.success('Problem generated! Review and edit before saving.');
+    } catch (e) {
+      setError('AI generation failed. Check your API key or try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const mutation = useMutation({
     mutationFn: problemsApi.create,
@@ -92,6 +123,29 @@ export default function NewProblemPage() {
           New Problem
         </h1>
       </div>
+
+      {/* AI Generation Panel */}
+      <Card className="border-primary/30 bg-primary/5">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">Generate with AI</span>
+          </div>
+          <div className="flex gap-2">
+            <input
+              className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
+              placeholder="Topic (e.g. binary search, graphs, dynamic programming)"
+              value={aiTopic}
+              onChange={(e) => setAiTopic(e.target.value)}
+              disabled={isGenerating}
+            />
+            <Button type="button" size="sm" onClick={handleGenerate} disabled={isGenerating}>
+              {isGenerating ? <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Generating…</> : 'Generate'}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">AI will fill in the form — you can edit before saving.</p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

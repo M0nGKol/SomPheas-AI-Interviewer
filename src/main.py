@@ -8,6 +8,7 @@ from src.api.v1.router import api_router
 from src.core.config import settings
 from src.core.database import engine, Base
 from src.core.logging import setup_logging
+from src.services.websocket.connection_manager import manager as ws_manager
 
 
 @asynccontextmanager
@@ -15,13 +16,12 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     setup_logging()
-    # Create database tables if they don't exist (migrations handle schema changes)
-    # This ensures tables exist even if migrations haven't run yet
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await ws_manager.startup()   # connects Redis pub-sub if REDIS_URL is set
     yield
     # Shutdown
-    pass
+    await ws_manager.shutdown()
 
 
 app = FastAPI(

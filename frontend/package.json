@@ -39,6 +39,9 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.4",
+    "y-monaco": "^0.1.6",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.24",
     "zustand": "^5.0.9"
   },
   "devDependencies": {

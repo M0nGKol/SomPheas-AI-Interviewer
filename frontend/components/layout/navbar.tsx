@@ -11,6 +11,7 @@ import {
   User,
   Github,
   Linkedin,
+  Server,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,10 +32,14 @@ function getDashboardHome(role?: string) {
 }
 
 function getNavLinks(role?: string) {
+  const isInterviewer = role === 'INTERVIEWER' || role === 'ADMIN';
   return [
     { name: 'Dashboard', href: getDashboardHome(role), icon: LayoutDashboard },
     { name: 'Interviews', href: '/dashboard/interviews', icon: MessageSquare },
-    { name: 'Problems', href: '/dashboard/problems', icon: BookOpen },
+    // Problems library is interviewer-only — candidates see problems through their interview room
+    ...(isInterviewer ? [{ name: 'Problems', href: '/dashboard/problems', icon: BookOpen }] : []),
+    // System health page for admins only
+    ...(role === 'ADMIN' ? [{ name: 'System', href: '/dashboard/system', icon: Server }] : []),
   ];
 }
 
@@ -58,16 +63,6 @@ export function Navbar() {
             <span className="text-lg font-semibold">SomPheas</span>
           </Link>
           <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="icon" asChild>
-              <a href="https://github.com/StephaneWamba/SomPheas" target="_blank" rel="noopener noreferrer" title="GitHub">
-                <Github className="h-5 w-5" />
-              </a>
-            </Button>
-            <Button variant="ghost" size="icon" asChild>
-              <a href="https://www.linkedin.com/in/stephane-wamba/" target="_blank" rel="noopener noreferrer" title="LinkedIn">
-                <Linkedin className="h-5 w-5" />
-              </a>
-            </Button>
             <Button variant="ghost" asChild>
               <Link href="/login">Sign In</Link>
             </Button>
