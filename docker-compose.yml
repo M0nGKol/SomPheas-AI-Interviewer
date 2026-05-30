@@ -64,6 +64,33 @@ services:
     # For development with hot reload, run uvicorn locally: uvicorn src.main:app --reload
     command: uvicorn src.main:app --host 0.0.0.0 --port 8000
 
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sompheas_worker
+    environment:
+      DATABASE_URL: postgresql://sompheas:sompheas_dev@db:5432/sompheas
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      celery -A src.workers.celery_app worker
+      --loglevel=info
+      --concurrency=2
+      --queues=celery
+    restart: unless-stopped
+
   agent:
     build:
       context: .

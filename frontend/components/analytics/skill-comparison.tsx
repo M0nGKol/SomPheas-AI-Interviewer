@@ -2,7 +2,21 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { SkillComparisonResponse } from '@/lib/api/interviews';
+interface SkillComparisonInterview {
+  id: number;
+  title: string;
+  completed_at?: string | null;
+}
+
+interface SkillComparisonResponse {
+  interviews: SkillComparisonInterview[];
+  comparison: {
+    communication: Record<number, number>;
+    technical: Record<number, number>;
+    problem_solving: Record<number, number>;
+    code_quality: Record<number, number>;
+  };
+}
 import { format } from 'date-fns';
 
 interface SkillComparisonProps {

@@ -1,7 +1,7 @@
 """Interview model."""
 
 from datetime import datetime
-from sqlalchemy import String, Text, DateTime, ForeignKey, JSON, Integer
+from sqlalchemy import String, Text, DateTime, ForeignKey, JSON, Integer, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -29,6 +29,9 @@ class Interview(Base):
     )
     language: Mapped[str] = mapped_column(String(50), default="python", nullable=False)
     current_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    yjs_state: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    invite_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
+    room_code: Mapped[str | None] = mapped_column(String(16), nullable=True, unique=True, index=True)
 
     conversation_history: Mapped[list | None] = mapped_column(
         JSON, nullable=True, default=list

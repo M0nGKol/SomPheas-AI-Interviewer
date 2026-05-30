@@ -196,36 +196,6 @@ export default function HomePage() {
           transition={{ duration: 0.5 }}
           className="relative container mx-auto px-4 py-20 md:py-32"
         >
-          {/* Portfolio Badge - Fixed at top */}
-          <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/90 dark:bg-amber-600/90 backdrop-blur-sm border-2 border-amber-600 dark:border-amber-500 shadow-lg">
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.2, 1],
-                  rotate: [0, 10, -10, 0]
-                }}
-                transition={{ 
-                  duration: 2, 
-                  repeat: Infinity,
-                  ease: 'easeInOut'
-                }}
-              >
-                <span className="text-lg">🎨</span>
-              </motion.div>
-              <span className="text-sm font-semibold text-white">
-                Portfolio Project
-              </span>
-              <span className="text-xs text-amber-100">
-                (Not Commercial)
-              </span>
-            </div>
-          </motion.div>
-
           <div className="max-w-4xl mx-auto text-center">
             {/* Feature Badge */}
             <motion.div

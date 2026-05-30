@@ -1,8 +1,12 @@
-"""WebSocket connection manager — tracks clients per interview room."""
+"""WebSocket connection manager — tracks clients per interview room.
+
+Uses RedisConnectionManager when REDIS_URL is configured (production /
+multi-replica deployments), falls back to in-memory for local dev.
+"""
 
 import logging
+import os
 from collections import defaultdict
-from typing import Any
 
 from fastapi import WebSocket
 
@@ -10,9 +14,16 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
-    def __init__(self):
-        # interview_id -> set of connected WebSockets
+    """In-memory manager — works for single-process deployments."""
+
+    def __init__(self) -> None:
         self._rooms: dict[int, set[WebSocket]] = defaultdict(set)
+
+    async def startup(self) -> None:
+        pass
+
+    async def shutdown(self) -> None:
+        pass
 
     async def connect(self, interview_id: int, ws: WebSocket) -> None:
         await ws.accept()
@@ -32,7 +43,6 @@ class ConnectionManager:
             logger.warning(f"Failed to send personal message: {e}")
 
     async def broadcast(self, interview_id: int, data: dict, exclude: WebSocket | None = None) -> None:
-        """Broadcast to all clients in a room except the sender."""
         dead: set[WebSocket] = set()
         for ws in list(self._rooms.get(interview_id, [])):
             if ws is exclude:
@@ -41,7 +51,6 @@ class ConnectionManager:
                 await ws.send_json(data)
             except Exception:
                 dead.add(ws)
-
         for ws in dead:
             self.disconnect(interview_id, ws)
 
@@ -49,4 +58,17 @@ class ConnectionManager:
         return len(self._rooms.get(interview_id, set()))
 
 
-manager = ConnectionManager()
+def _create_manager() -> ConnectionManager:
+    redis_url = os.environ.get("REDIS_URL")
+    if redis_url:
+        try:
+            from src.services.websocket.redis_connection_manager import RedisConnectionManager
+            logger.info(f"Using RedisConnectionManager ({redis_url})")
+            return RedisConnectionManager(redis_url)  # type: ignore[return-value]
+        except Exception as e:
+            logger.warning(f"Failed to init RedisConnectionManager, falling back to in-memory: {e}")
+    logger.info("Using in-memory ConnectionManager (single-process mode)")
+    return ConnectionManager()
+
+
+manager = _create_manager()
