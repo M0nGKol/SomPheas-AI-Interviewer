@@ -2,7 +2,6 @@
 
 import logging
 import uuid
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +20,6 @@ from src.schemas.sandbox import (
     CodeSubmissionRequest,
 )
 from src.services.execution.sandbox_service import SandboxService, Language
-from src.services.analysis.code_analyzer import CodeAnalyzer
 from src.services.analysis.code_metrics import get_code_metrics
 
 logger = logging.getLogger(__name__)

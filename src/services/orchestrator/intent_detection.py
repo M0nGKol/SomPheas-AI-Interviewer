@@ -5,13 +5,12 @@ from typing import TYPE_CHECKING
 
 from openai import AsyncOpenAI
 from src.services.orchestrator.types import InterviewState, UserIntent, UserIntentDetection
-from src.services.orchestrator.context_builders import build_conversation_context
 from src.services.orchestrator.llm_helpers import LLMHelper
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from src.services.logging.interview_logger import InterviewLogger
+    pass
 
 
 async def detect_user_intent(

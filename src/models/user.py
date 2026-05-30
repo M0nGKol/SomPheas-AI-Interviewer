@@ -35,10 +35,10 @@ class User(Base):
     )
 
     # Relationships
-    resumes: Mapped[list["Resume"]] = relationship(
+    resumes: Mapped[list["Resume"]] = relationship(  # noqa: F821
         "Resume", back_populates="user", cascade="all, delete-orphan"
     )
-    interviews: Mapped[list["Interview"]] = relationship(
+    interviews: Mapped[list["Interview"]] = relationship(  # noqa: F821
         "Interview",
         back_populates="user",
         foreign_keys="Interview.user_id",

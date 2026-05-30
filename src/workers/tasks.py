@@ -4,7 +4,6 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from celery import shared_task
 from sqlalchemy import select
 
 from src.workers.celery_app import celery_app

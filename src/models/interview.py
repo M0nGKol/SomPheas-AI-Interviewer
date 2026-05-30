@@ -58,10 +58,10 @@ class Interview(Base):
     )
 
     # Relationships
-    user: Mapped["User"] = relationship(
+    user: Mapped["User"] = relationship(  # noqa: F821
         "User", foreign_keys=[user_id], back_populates="interviews"
     )
-    resume: Mapped["Resume | None"] = relationship("Resume", back_populates="interviews")
+    resume: Mapped["Resume | None"] = relationship("Resume", back_populates="interviews")  # noqa: F821
 
     def __repr__(self) -> str:
         return f"<Interview(id={self.id}, user_id={self.user_id}, status={self.status})>"

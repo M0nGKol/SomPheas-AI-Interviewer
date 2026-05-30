@@ -107,7 +107,7 @@ Provide brief feedback on the answer quality."""
 
             return result
 
-        except Exception as e:
+        except Exception:
             # Return default quality on error
             return AnswerQuality(
                 quality_score=0.5,
