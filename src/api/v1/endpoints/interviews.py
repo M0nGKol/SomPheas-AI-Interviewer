@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select
 
 from src.core.database import get_db
 from src.models.user import User
@@ -126,7 +126,7 @@ async def list_candidates(
     if current_user.role not in ("INTERVIEWER", "ADMIN"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     result = await db.execute(
-        select(User).where(User.role == "CANDIDATE", User.is_active == True).order_by(User.full_name)
+        select(User).where(User.role == "CANDIDATE", User.is_active).order_by(User.full_name)
     )
     return [
         {"id": u.id, "email": u.email, "full_name": u.full_name}
@@ -476,7 +476,8 @@ def _make_livekit_token(
 
 def _generate_room_code() -> str:
     """Generate a short human-readable room code like XK9-4F2."""
-    import random, string
+    import random
+    import string
     chars = string.ascii_uppercase + string.digits
     part1 = ''.join(random.choices(chars, k=3))
     part2 = ''.join(random.choices(chars, k=3))

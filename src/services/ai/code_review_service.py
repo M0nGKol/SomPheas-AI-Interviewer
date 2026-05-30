@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from src.services.ai.ai_service import get_ai_completion, get_fallback_chat_response
+from src.services.ai.ai_service import get_ai_completion
 from src.services.ai.prompt_builder import build_code_review_prompt
 
 logger = logging.getLogger(__name__)

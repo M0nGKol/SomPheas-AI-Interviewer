@@ -8,11 +8,9 @@ import logging
 import json
 import uuid
 import time
-from typing import TYPE_CHECKING
 from datetime import datetime
-from openai import AsyncOpenAI
 
-from src.services.execution.sandbox_service import SandboxService, Language as SandboxLanguage
+from src.services.execution.sandbox_service import Language as SandboxLanguage
 from src.services.analysis.code_metrics import get_code_metrics
 from src.services.orchestrator.types import InterviewState, QuestionRecord, QuestionGeneration
 from src.services.orchestrator.context_builders import (
@@ -21,8 +19,7 @@ from src.services.orchestrator.context_builders import (
 from src.services.orchestrator.constants import (
     COMMON_SYSTEM_PROMPT,
     SANDBOX_POLL_INTERVAL_SECONDS, SANDBOX_STUCK_THRESHOLD_SECONDS,
-    TEMPERATURE_CREATIVE, TEMPERATURE_BALANCED, TEMPERATURE_ANALYTICAL, TEMPERATURE_QUESTION,
-    DEFAULT_MODEL
+    TEMPERATURE_CREATIVE, TEMPERATURE_BALANCED, TEMPERATURE_ANALYTICAL, TEMPERATURE_QUESTION
 )
 logger = logging.getLogger(__name__)
 
@@ -158,11 +155,9 @@ class ActionNodeMixin:
         questions_asked = [q["text"]
                            for q in state.get("questions_asked", [])[-10:]]
 
-        last_user_response = ""
         if state.get("conversation_history"):
             for msg in reversed(state.get("conversation_history", [])):
                 if msg.get("role") == "user":
-                    last_user_response = msg.get("content", "")
                     break
 
         name_note = f"\nCandidate's name: {candidate_name.split()[0] if candidate_name else 'Not provided'}\nYou can use their first name naturally if it feels appropriate." if candidate_name else ""
@@ -708,8 +703,6 @@ class ActionNodeMixin:
                 check_result = json.loads(check_result_json)
 
                 if not check_result.get("matches_exercise", True):
-                    reason = check_result.get(
-                        "reason", "The code doesn't appear to match the exercise.")
                     exercise_mismatch_note = f"\n\nNote: I notice you submitted code that doesn't match the exercise I provided ({exercise_description[:100]}...). I'll review what you submitted, but I'd also like to see your solution to the original exercise when you're ready."
             except Exception:
                 pass

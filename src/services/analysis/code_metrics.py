@@ -1,6 +1,6 @@
 """Service for tracking code execution metrics and analytics."""
 
-from typing import List, Dict, Any
+from typing import Dict, Any
 from datetime import datetime
 from collections import defaultdict
 

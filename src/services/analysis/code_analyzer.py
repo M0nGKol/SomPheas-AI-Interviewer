@@ -1,12 +1,12 @@
 """Service for analyzing code quality and execution results."""
 
-from typing import Optional, List
+from typing import Optional
 from openai import AsyncOpenAI
 import instructor
 from pydantic import BaseModel, Field
 
 from src.core.config import settings
-from src.services.execution.sandbox_service import SandboxService, Language as SandboxLanguage
+from src.services.execution.sandbox_service import SandboxService
 
 
 class CodeQuality(BaseModel):
