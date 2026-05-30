@@ -158,7 +158,8 @@ export function InterviewRoom({ interview, problem, problemLoading, initialCode 
 
   // Capture the Monaco editor instance when CodeEditor mounts
   const handleEditorMount = useCallback(
-    async (editor: Monaco.editor.IStandaloneCodeEditor, monaco: typeof Monaco) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async (editor: any, monaco: any) => {
       monacoEditorRef.current = editor;
       monacoRef.current = monaco;
       await yjsEditor.bind(editor, monaco);

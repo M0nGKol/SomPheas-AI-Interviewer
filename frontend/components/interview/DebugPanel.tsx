@@ -11,7 +11,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import * as Y from 'yjs';
-import type * as Monaco from 'monaco-editor';
 import { Bug, Trash2, MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,22 +27,27 @@ function authorColor(author: string): string {
 
 interface DebugPanelProps {
   yBreakpoints: Y.Map<string>;
-  editor: Monaco.editor.IStandaloneCodeEditor | null;
-  monaco: typeof Monaco | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  editor: any | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  monaco: any | null;
   author: string;       // display name of the current user
   enabled: boolean;     // debug mode toggle
 }
 
 export function useDebugDecorations(
   yBreakpoints: Y.Map<string>,
-  editor: Monaco.editor.IStandaloneCodeEditor | null,
-  monaco: typeof Monaco | null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  editor: any | null,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  monaco: any | null,
 ) {
   const decorationsRef = useRef<string[]>([]);
 
   const refresh = useCallback(() => {
     if (!editor || !monaco) return;
-    const newDecorations: Monaco.editor.IModelDeltaDecoration[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newDecorations: any[] = [];
 
     yBreakpoints.forEach((raw) => {
       try {

@@ -116,7 +116,6 @@ export function VoiceVideoRoom({
             if (!remoteAudioRef.current) {
               const audioElement = document.createElement('audio');
               audioElement.autoplay = true;
-              audioElement.playsInline = true;
               audioElement.setAttribute('playsinline', 'true');
               // Important: Enable autoplay and mute control
               audioElement.muted = false;

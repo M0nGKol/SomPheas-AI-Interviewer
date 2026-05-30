@@ -2,7 +2,6 @@
 
 import { useRef, useCallback, useEffect } from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
-import type * as Monaco from 'monaco-editor';
 import { getMonacoLanguage } from './LanguageSelector';
 
 export interface RemoteCursor {
@@ -34,7 +33,8 @@ export function CodeEditor({
   onEditorMount,
 }: CodeEditorProps) {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
-  const monacoRef = useRef<typeof Monaco | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const monacoRef = useRef<any>(null);
   const decorationsRef = useRef<string[]>([]);
   const prevValueRef = useRef(value);
 
