@@ -1,5 +1,6 @@
 """WebSocket endpoint for real-time interview session sync."""
 
+import base64
 import json
 import logging
 
@@ -80,12 +81,15 @@ async def interview_websocket(
                     "user_id": user_id,
                     "room_size": manager.room_size(interview_id),
                 }, exclude=websocket)
-                await manager.send_personal(websocket, {
+                join_resp: dict = {
                     "event": "session:join",
                     "status": interview.status,
                     "language": interview.language,
                     "current_code": interview.current_code,
-                })
+                }
+                if interview.yjs_state:
+                    join_resp["yjs_state"] = base64.b64encode(interview.yjs_state).decode()
+                await manager.send_personal(websocket, join_resp)
 
             # ---------------------------------------------------------------
             elif event == "session:leave":
@@ -137,6 +141,33 @@ async def interview_websocket(
                 }, exclude=websocket)
 
             # ---------------------------------------------------------------
+            elif event == "cursor:update":
+                # Ephemeral — broadcast only, no DB write
+                await manager.broadcast(interview_id, {
+                    "event": "cursor:update",
+                    "line": data.get("line", 1),
+                    "column": data.get("column", 1),
+                    "user_id": user_id,
+                }, exclude=websocket)
+
+            # ---------------------------------------------------------------
+            elif event == "session:flag":
+                flag_type = data.get("flag_type", "UNKNOWN")
+                meta = data.get("meta", {})
+                await log_session_event(
+                    db, interview_id, user_id,
+                    "PASTE_DETECTED" if flag_type == "LARGE_PASTE" else "SUSPICIOUS_ACTIVITY",
+                    {"flag_type": flag_type, **meta},
+                )
+                # Notify the interviewer in the room
+                await manager.broadcast(interview_id, {
+                    "event": "session:flag",
+                    "flag_type": flag_type,
+                    "meta": meta,
+                    "user_id": user_id,
+                }, exclude=websocket)
+
+            # ---------------------------------------------------------------
             elif event == "session:submit":
                 await log_session_event(db, interview_id, user_id, "SESSION_SUBMITTED_WS")
                 await manager.broadcast(interview_id, {
@@ -145,12 +176,34 @@ async def interview_websocket(
                 }, exclude=websocket)
 
             # ---------------------------------------------------------------
+            elif event == "yjs:update":
+                raw_update = data.get("update", "")
+                try:
+                    update_bytes = base64.b64decode(raw_update)
+                    # Merge into stored state (simple append — Yjs handles dedup)
+                    existing = interview.yjs_state or b""
+                    interview.yjs_state = existing + update_bytes
+                    await db.commit()
+                except Exception:
+                    pass  # malformed update — ignore
+                # Fan out to everyone in the room (including sender — Yjs deduplicates)
+                await manager.broadcast(interview_id, {
+                    "event": "yjs:update",
+                    "update": raw_update,
+                    "user_id": user_id,
+                }, exclude=websocket)
+
+            # ---------------------------------------------------------------
             elif event == "session:reconnect":
-                await manager.send_personal(websocket, {
+                # Send back Yjs state snapshot if available, else fall back to current_code
+                response: dict = {
                     "event": "session:reconnect",
                     "status": interview.status,
                     "current_code": interview.current_code,
-                })
+                }
+                if interview.yjs_state:
+                    response["yjs_state"] = base64.b64encode(interview.yjs_state).decode()
+                await manager.send_personal(websocket, response)
 
             else:
                 await manager.send_personal(websocket, {

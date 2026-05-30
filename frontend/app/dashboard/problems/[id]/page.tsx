@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { renderMarkdown } from '@/lib/markdown';
 
 const DIFF_BADGE: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
   EASY: { label: 'Easy', variant: 'default' },
@@ -83,7 +84,7 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ id: st
               <CardTitle className="text-base">Description</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{problem.description}</p>
+              <div className="space-y-1">{renderMarkdown(problem.description ?? '')}</div>
             </CardContent>
           </Card>
 
@@ -100,15 +101,28 @@ export default function ProblemDetailPage({ params }: { params: Promise<{ id: st
             </Card>
           )}
 
-          {problem.test_cases && (
+          {problem.test_cases && Array.isArray(problem.test_cases) && (problem.test_cases as Array<{input: Record<string,unknown>; expected: unknown}>).length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Test Cases</CardTitle>
+                <CardTitle className="text-base">Examples</CardTitle>
               </CardHeader>
-              <CardContent>
-                <pre className="bg-muted rounded-md p-4 overflow-x-auto text-sm font-mono whitespace-pre-wrap">
-                  {JSON.stringify(problem.test_cases, null, 2)}
-                </pre>
+              <CardContent className="space-y-2">
+                {(problem.test_cases as Array<{input: Record<string,unknown>; expected: unknown}>).map((tc, idx) => (
+                  <div key={idx} className="rounded-md border bg-muted/40 p-3 text-xs font-mono space-y-1">
+                    <div>
+                      <span className="text-muted-foreground">Input:&nbsp;</span>
+                      {Object.entries(tc.input).map(([k, v]) => (
+                        <span key={k} className="mr-2">
+                          <span className="text-blue-500">{k}</span>{' = '}<span>{JSON.stringify(v)}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Output:&nbsp;</span>
+                      <span className="text-green-600">{JSON.stringify(tc.expected)}</span>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}

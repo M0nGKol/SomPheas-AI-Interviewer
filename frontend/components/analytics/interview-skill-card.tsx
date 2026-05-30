@@ -4,7 +4,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle, Lightbulb } from 'lucide-react';
 import { SkillRadarChart } from './skill-radar-chart';
-import { InterviewSkillBreakdown } from '@/lib/api/interviews';
+interface SkillDetail {
+  score: number;
+  strengths?: string[];
+  weaknesses?: string[];
+  recommendations?: string[];
+}
+
+interface InterviewSkillBreakdown {
+  interview_title: string;
+  completed_at?: string | null;
+  skill_breakdown: {
+    communication: SkillDetail;
+    technical: SkillDetail;
+    problem_solving: SkillDetail;
+    code_quality: SkillDetail;
+  };
+}
 
 interface InterviewSkillCardProps {
   breakdown: InterviewSkillBreakdown;

@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Play, BookOpen, Loader2, Code2, BarChart2, Sparkles,
+  Copy, Check, Hash,
 } from 'lucide-react';
 
 import { interviewsApi, type Interview } from '@/lib/api/interviews';
@@ -32,12 +33,52 @@ const DIFF_COLOR: Record<string, string> = {
   HARD: 'bg-red-100 text-red-800',
 };
 
+function RoomCodeCard({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    toast.success('Room code copied!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Format as XXX-XXX if not already
+  const display = code.includes('-') ? code : `${code.slice(0, 3)}-${code.slice(3)}`;
+
+  return (
+    <Card className="border-primary/40 bg-primary/5">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
+              <Hash className="h-3 w-3" />
+              Room Code — share this with your candidate
+            </p>
+            <p className="text-4xl font-bold tracking-[0.25em] font-mono text-primary">
+              {display}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Candidate goes to their dashboard → "Join with code" → types this code
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={handleCopy} className="shrink-0 gap-1.5">
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            {copied ? 'Copied!' : 'Copy'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function InterviewDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const interviewId = Number(id);
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const isInterviewer = user?.role === 'INTERVIEWER' || user?.role === 'ADMIN';
 
   const { data: interview, isLoading } = useQuery<Interview>({
     queryKey: ['interview', interviewId],
@@ -159,13 +200,18 @@ export default function InterviewDetailPage({ params }: { params: Promise<{ id: 
             </Button>
           )}
           <Button asChild variant="outline" size="sm">
-            <Link href={`/dashboard/analytics`}>
+            <Link href="/dashboard/analytics">
               <BarChart2 className="mr-1 h-4 w-4" />
               Analytics
             </Link>
           </Button>
         </div>
       </div>
+
+      {/* Room code — shown to interviewers for sharing */}
+      {isInterviewer && interview.room_code && !isFinished && (
+        <RoomCodeCard code={interview.room_code} />
+      )}
 
       <Separator />
 
@@ -252,7 +298,7 @@ export default function InterviewDetailPage({ params }: { params: Promise<{ id: 
             <Card>
               <CardContent className="py-6 text-center">
                 <p className="text-sm text-muted-foreground mb-3">
-                  No evaluation yet. Generate one to see your performance analysis.
+                  No evaluation yet. Generate one to see performance analysis.
                 </p>
                 {canEvaluate && (
                   <Button

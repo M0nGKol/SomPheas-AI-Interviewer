@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ArrowLeft, Loader2, Plus } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 
 import { interviewsApi, type InterviewCreate } from '@/lib/api/interviews';
 import { problemsApi } from '@/lib/api/problems';
+import { useAuthStore } from '@/lib/store/auth-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,11 +28,15 @@ const LANGUAGES = [
 export default function NewInterviewPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isInterviewer = user?.role === 'INTERVIEWER' || user?.role === 'ADMIN';
+  const isCandidate = user?.role === 'CANDIDATE';
 
   const [form, setForm] = useState<InterviewCreate>({
     title: '',
     problem_id: null,
     language: 'python',
+    assigned_to_user_id: null,
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -40,12 +45,31 @@ export default function NewInterviewPage() {
     queryFn: problemsApi.list,
   });
 
+  const { data: candidates } = useQuery({
+    queryKey: ['candidates'],
+    queryFn: interviewsApi.listCandidates,
+    enabled: isInterviewer,
+  });
+
   const mutation = useMutation({
-    mutationFn: interviewsApi.create,
+    mutationFn: async (data: InterviewCreate) => {
+      const interview = await interviewsApi.create(data);
+      // Candidates go straight into the room — create + start in one step
+      if (isCandidate) {
+        await interviewsApi.start(interview.id);
+        return interview;
+      }
+      return interview;
+    },
     onSuccess: (interview) => {
       queryClient.invalidateQueries({ queryKey: ['interviews'] });
-      toast.success('Interview created!');
-      router.push(`/dashboard/interviews/${interview.id}`);
+      if (isCandidate) {
+        toast.success('Session started! Entering room…');
+        router.push(`/interview/${interview.id}`);
+      } else {
+        toast.success('Interview created!');
+        router.push(`/dashboard/interviews/${interview.id}`);
+      }
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -71,13 +95,13 @@ export default function NewInterviewPage() {
         </Button>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Plus className="h-6 w-6" />
-          New Interview
+          {isCandidate ? 'New Practice Session' : 'New Interview'}
         </h1>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Interview Details</CardTitle>
+          <CardTitle>{isCandidate ? 'Session Details' : 'Interview Details'}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -122,6 +146,34 @@ export default function NewInterviewPage() {
               </Select>
             </div>
 
+            {isInterviewer && (
+              <div className="space-y-2">
+                <Label htmlFor="candidate" className="flex items-center gap-1.5">
+                  <UserCheck className="h-3.5 w-3.5" />
+                  Assign to Candidate (optional)
+                </Label>
+                <Select
+                  value={form.assigned_to_user_id?.toString() ?? 'none'}
+                  onValueChange={(v) =>
+                    setForm({ ...form, assigned_to_user_id: v === 'none' ? null : Number(v) })
+                  }
+                  disabled={mutation.isPending}
+                >
+                  <SelectTrigger id="candidate">
+                    <SelectValue placeholder="Self-assigned (no candidate)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Self-assigned (no candidate)</SelectItem>
+                    {candidates?.map((c) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>
+                        {c.full_name} — {c.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="language">Language *</Label>
               <Select
@@ -147,10 +199,10 @@ export default function NewInterviewPage() {
                 {mutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    {isCandidate ? 'Entering Room…' : 'Creating...'}
                   </>
                 ) : (
-                  'Create Interview'
+                  isCandidate ? 'Start Practice' : 'Create Interview'
                 )}
               </Button>
               <Button asChild variant="outline" disabled={mutation.isPending}>

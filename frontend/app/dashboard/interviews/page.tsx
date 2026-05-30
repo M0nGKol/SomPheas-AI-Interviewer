@@ -1,17 +1,18 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import {
   Plus, Play, CheckCircle2, Clock, XCircle, Loader2,
-  Trash2, ArrowRight, BookOpen, MessageSquare,
+  Trash2, ArrowRight, BookOpen, MessageSquare, Radio, Code2,
 } from 'lucide-react';
 
 import { interviewsApi, type Interview } from '@/lib/api/interviews';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -37,11 +38,22 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function InterviewsPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const isCandidate = user?.role === 'CANDIDATE';
 
   const { data: interviews, isLoading } = useQuery<Interview[]>({
     queryKey: ['interviews'],
     queryFn: interviewsApi.list,
+  });
+
+  const startMutation = useMutation({
+    mutationFn: (id: number) => interviewsApi.start(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['interviews'] });
+      router.push(`/interview/${id}`);
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const deleteMutation = useMutation({
@@ -52,6 +64,10 @@ export default function InterviewsPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const handleStart = (interview: Interview) => {
+    startMutation.mutate(interview.id);
+  };
 
   const handleDelete = (interview: Interview) => {
     if (!confirm(`Delete "${interview.title}"?`)) return;
@@ -64,18 +80,18 @@ export default function InterviewsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <MessageSquare className="h-7 w-7" />
-            Interviews
+            {isCandidate ? 'My Sessions' : 'Interviews'}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {user?.role === 'CANDIDATE'
-              ? 'Create and manage your coding interview sessions.'
+            {isCandidate
+              ? 'Start a session to open the coding room directly.'
               : 'View all interview sessions.'}
           </p>
         </div>
         <Button asChild>
           <Link href="/dashboard/interviews/new">
             <Plus className="mr-2 h-4 w-4" />
-            New Interview
+            {isCandidate ? 'New Practice Session' : 'New Interview'}
           </Link>
         </Button>
       </div>
@@ -90,7 +106,9 @@ export default function InterviewsPage() {
             <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-40" />
             <p className="font-medium">No interviews yet</p>
             <Button asChild variant="outline" className="mt-4">
-              <Link href="/dashboard/interviews/new">Create your first interview</Link>
+              <Link href="/dashboard/interviews/new">
+                {isCandidate ? 'Start your first practice session' : 'Create your first interview'}
+              </Link>
             </Button>
           </CardContent>
         </Card>
@@ -116,31 +134,64 @@ export default function InterviewsPage() {
                     {interview.started_at && ` · Started ${format(new Date(interview.started_at), 'MMM d, yyyy')}`}
                   </p>
                 </div>
+
                 <div className="flex items-center gap-2 shrink-0">
-                  {interview.status === 'CREATED' || interview.status === 'WAITING' ? (
-                    <Button asChild size="sm">
-                      <Link href={`/dashboard/interviews/${interview.id}`}>
+                  {/* CREATED / WAITING → Start button directly opens the room */}
+                  {(interview.status === 'CREATED' || interview.status === 'WAITING') && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleStart(interview)}
+                      disabled={startMutation.isPending && startMutation.variables === interview.id}
+                    >
+                      {startMutation.isPending && startMutation.variables === interview.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
                         <Play className="h-4 w-4 mr-1" />
-                        Start
-                      </Link>
+                      )}
+                      {isCandidate ? 'Enter Room' : 'Start'}
                     </Button>
-                  ) : interview.status === 'IN_PROGRESS' ? (
-                    <Button asChild size="sm">
-                      <Link href={`/interview/${interview.id}`}>
-                        Join Room
-                      </Link>
-                    </Button>
-                  ) : interview.status === 'COMPLETED' || interview.status === 'SUBMITTED' ? (
+                  )}
+
+                  {/* IN_PROGRESS → rejoin the live room */}
+                  {interview.status === 'IN_PROGRESS' && (
+                    <>
+                      <Button asChild size="sm">
+                        <Link href={`/interview/${interview.id}`}>
+                          <Code2 className="h-4 w-4 mr-1" />
+                          Enter Room
+                        </Link>
+                      </Button>
+                      {(user?.role === 'INTERVIEWER' || user?.role === 'ADMIN') && interview.interviewer_id && (
+                        <Button asChild size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-200 hover:bg-red-50">
+                          <Link href={`/interview/${interview.id}?mode=watch`}>
+                            <Radio className="h-3.5 w-3.5 animate-pulse" />
+                            Watch Live
+                          </Link>
+                        </Button>
+                      )}
+                    </>
+                  )}
+
+                  {/* COMPLETED / SUBMITTED → view result */}
+                  {(interview.status === 'COMPLETED' || interview.status === 'SUBMITTED') && (
                     <Button asChild size="sm" variant="outline">
                       <Link href={`/dashboard/interviews/${interview.id}`}>
                         View Result
                       </Link>
                     </Button>
-                  ) : (
+                  )}
+
+                  {/* Other statuses (EVALUATING, CANCELLED) → details */}
+                  {interview.status !== 'CREATED' &&
+                   interview.status !== 'WAITING' &&
+                   interview.status !== 'IN_PROGRESS' &&
+                   interview.status !== 'COMPLETED' &&
+                   interview.status !== 'SUBMITTED' && (
                     <Button asChild size="sm" variant="ghost">
                       <Link href={`/dashboard/interviews/${interview.id}`}>Details</Link>
                     </Button>
                   )}
+
                   <Button
                     variant="ghost"
                     size="sm"

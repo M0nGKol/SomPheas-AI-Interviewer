@@ -1,0 +1,53 @@
+# Load balancing simulation — run with:
+#   docker compose -f docker-compose.yml -f docker-compose.lb.yml up
+#
+# Spins up 2 API replicas behind nginx.
+# Each instance gets a unique INSTANCE_ID so you can see both nodes in the
+# System Health dashboard.
+
+services:
+  api:
+    # Override: don't expose port directly — nginx handles ingress
+    ports: []
+    environment:
+      INSTANCE_ID: "node-1"
+
+  api2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://sompheas:sompheas_dev@db:5432/sompheas
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      UPLOAD_DIR: /app/uploads
+      INSTANCE_ID: "node-2"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./src:/app/src
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: sompheas_nginx
+    ports:
+      - "8003:80"
+    volumes:
+      - ./nginx/lb.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - api2
+    restart: unless-stopped

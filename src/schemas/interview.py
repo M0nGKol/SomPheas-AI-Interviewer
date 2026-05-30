@@ -12,6 +12,8 @@ class InterviewCreate(BaseModel):
     title: str = Field(..., max_length=255)
     problem_id: Optional[int] = None
     language: str = Field("python", max_length=50)
+    # Interviewers can assign the session to a specific candidate
+    assigned_to_user_id: Optional[int] = None
 
 
 class InterviewUpdate(BaseModel):
@@ -32,6 +34,7 @@ class InterviewResponse(BaseModel):
     language: str
     current_code: Optional[str] = None
     feedback: Optional[Any] = None
+    room_code: Optional[str] = None
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
     created_at: str
