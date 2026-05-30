@@ -19,6 +19,10 @@ import {
   Users,
   BarChart3,
   Zap,
+  Video,
+  Bug,
+  Monitor,
+  Brain,
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -60,64 +64,93 @@ export default function HomePage() {
 
   const features = [
     {
-      icon: Mic,
-      title: 'Voice Practice Sessions',
-      description: 'Practice with AI-powered voice interviews that feel like the real thing. Get instant feedback on your communication skills.',
+      icon: Code,
+      title: 'Real-Time Collaborative Editor',
+      description: 'Both interviewer and candidate code together in a shared Monaco editor — live cursors, instant sync, and breakpoint collaboration powered by Yjs.',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50 dark:bg-blue-950',
     },
     {
-      icon: FileText,
-      title: 'Resume Analysis',
-      description: 'Upload your resume and get personalized interview questions based on your experience and skills.',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50 dark:bg-green-950',
-    },
-    {
-      icon: Code,
-      title: 'Live Code Practice',
-      description: 'Solve coding challenges in real-time with our interactive code editor. Get feedback on your solutions instantly.',
+      icon: Brain,
+      title: 'AI Interview Assistant',
+      description: 'Gemini-powered AI streams answers and hints during the session, then auto-generates a full scored evaluation after the interview ends.',
       color: 'text-purple-600',
       bgColor: 'bg-purple-50 dark:bg-purple-950',
     },
     {
+      icon: Video,
+      title: 'Voice & Video + Screen Share',
+      description: 'LiveKit WebRTC brings real voice and video into every session. Interviewers and candidates can share their screen with one click.',
+      color: 'text-green-600',
+      bgColor: 'bg-green-50 dark:bg-green-950',
+    },
+    {
       icon: TrendingUp,
-      title: 'Track Your Progress',
-      description: 'Monitor your improvement over time with detailed analytics and skill progression charts.',
+      title: 'Analytics & Skill Tracking',
+      description: 'Every session produces skill scores across technical ability, code quality, communication, and problem-solving — with progression charts over time.',
       color: 'text-orange-600',
       bgColor: 'bg-orange-50 dark:bg-orange-950',
+    },
+    {
+      icon: Bug,
+      title: 'Collaborative Debugging',
+      description: 'Set shared breakpoints on any line in the editor. Breakpoints sync instantly between participants, with per-author color coding and inline comments.',
+      color: 'text-red-600',
+      bgColor: 'bg-red-50 dark:bg-red-950',
+    },
+    {
+      icon: FileText,
+      title: 'Problem Library & AI Generation',
+      description: 'Interviewers maintain a library of coding problems or generate new ones instantly with AI — tailored to language, difficulty, and role.',
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50 dark:bg-indigo-950',
+    },
+    {
+      icon: Mic,
+      title: 'Invite by Link or Room Code',
+      description: 'Share a one-click invite link or a 6-character room code. Candidates join instantly — no setup required.',
+      color: 'text-teal-600',
+      bgColor: 'bg-teal-50 dark:bg-teal-950',
+    },
+    {
+      icon: Zap,
+      title: 'Background AI Evaluation',
+      description: 'Evaluation runs as a background Celery task so the interview ends instantly. Results appear automatically when the AI is done.',
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-50 dark:bg-yellow-950',
     },
   ];
 
   const steps = [
     {
       number: '01',
-      title: 'Upload Your Resume',
-      description: 'Share your resume and let our AI understand your background and experience.',
+      title: 'Create an Interview',
+      description: 'Interviewer sets up a session, picks a coding problem, and assigns a candidate.',
     },
     {
       number: '02',
-      title: 'Start Practice Session',
-      description: 'Begin a voice interview session tailored to your resume and career goals.',
+      title: 'Invite the Candidate',
+      description: 'Send an invite link or share the room code. Candidate joins in one click.',
     },
     {
       number: '03',
-      title: 'Practice & Learn',
-      description: 'Answer questions, solve coding challenges, and receive real-time feedback.',
+      title: 'Code Together Live',
+      description: 'Both parties collaborate in the shared editor with voice, video, AI chat, and screen sharing.',
     },
     {
       number: '04',
-      title: 'Review & Improve',
-      description: 'Get comprehensive feedback and track your progress over time.',
+      title: 'Get AI Evaluation',
+      description: 'After the session ends, AI automatically scores the candidate across 5 skill dimensions.',
     },
   ];
 
   const benefits = [
-    'Unlimited practice sessions',
-    'Personalized interview questions',
-    'Real-time feedback and scoring',
-    'Progress tracking and analytics',
-    'No credit card required',
+    'Live collaborative code editor with real-time sync',
+    'AI-powered evaluation with skill scores after every session',
+    'Voice & video powered by LiveKit WebRTC',
+    'Screen sharing and collaborative debugging',
+    'Background task queue — no waiting for AI results',
+    'Resume-aware AI that tailors questions to the candidate',
   ];
 
   const containerVariants = {
@@ -211,7 +244,7 @@ export default function HomePage() {
                 <Sparkles className="h-4 w-4 text-indigo-600" />
               </motion.div>
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                AI-Powered Interview Preparation
+                AI-Powered Technical Interview Platform
               </span>
             </motion.div>
 
@@ -222,7 +255,7 @@ export default function HomePage() {
               transition={{ delay: 0.3, duration: 0.6 }}
               className="text-5xl md:text-7xl font-bold tracking-tight mb-6 bg-gradient-to-r from-gray-900 via-indigo-700 to-gray-900 dark:from-white dark:via-indigo-300 dark:to-white bg-clip-text text-transparent"
             >
-              Ace Your Next Interview
+              Run Better Technical Interviews
             </motion.h1>
 
             <motion.p
@@ -231,8 +264,7 @@ export default function HomePage() {
               transition={{ delay: 0.4, duration: 0.6 }}
               className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto"
             >
-              Practice with AI-powered voice interviews, get personalized feedback, and track your progress. 
-              Build confidence for your dream job.
+              A real-time platform where interviewers and candidates collaborate live — shared code editor, voice & video, AI evaluation, and screen sharing. All in one room.
             </motion.p>
 
             {/* CTA Buttons */}
@@ -285,9 +317,9 @@ export default function HomePage() {
               className="grid grid-cols-3 gap-8 max-w-2xl mx-auto"
             >
               {[
-                { value: '10K+', label: 'Practice Sessions' },
-                { value: '95%', label: 'Success Rate' },
-                { value: '24/7', label: 'Available' },
+                { value: 'Live', label: 'Collaborative Editor' },
+                { value: 'AI', label: 'Auto Evaluation' },
+                { value: 'WebRTC', label: 'Voice & Video' },
               ].map((stat, index) => (
                 <motion.div
                   key={index}
@@ -326,7 +358,7 @@ export default function HomePage() {
               Everything You Need to Succeed
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Powerful features designed to help you prepare for your next interview
+              Every tool interviewers and candidates need — in a single live session
             </p>
           </motion.div>
 
@@ -335,7 +367,7 @@ export default function HomePage() {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: '-100px' }}
-            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6"
+            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 lg:grid-cols-4 xl:grid-cols-4"
           >
             {features.map((feature, index) => {
               const Icon = feature.icon;
@@ -379,7 +411,7 @@ export default function HomePage() {
               How It Works
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Get started in minutes and start improving your interview skills today
+              From scheduling to AI-scored results in four simple steps
             </p>
           </motion.div>
 
@@ -439,10 +471,10 @@ export default function HomePage() {
                       transition={{ duration: 0.6 }}
                     >
                       <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                        Why Choose SomPheas?
+                        Why InterviewLab?
                       </h2>
                       <p className="text-xl text-muted-foreground mb-8">
-                        Join thousands of job seekers who are acing their interviews with our platform.
+                        Built for real technical hiring — not just practice. Every session is a full collaborative experience with AI-generated results.
                       </p>
                       <motion.ul
                         variants={containerVariants}
@@ -496,9 +528,9 @@ export default function HomePage() {
                       >
                         <div className="space-y-4">
                           {[
-                            { icon: Users, color: 'text-indigo-600', label: 'Active Users', value: '10,000+' },
-                            { icon: BarChart3, color: 'text-blue-600', label: 'Success Rate', value: '95%' },
-                            { icon: Zap, color: 'text-orange-600', label: 'Response Time', value: '<1s' },
+                            { icon: Users, color: 'text-indigo-600', label: 'Roles Supported', value: '3 Roles' },
+                            { icon: BarChart3, color: 'text-blue-600', label: 'Skill Dimensions', value: '5 Scores' },
+                            { icon: Zap, color: 'text-orange-600', label: 'AI Evaluation', value: 'Async' },
                           ].map((stat, index) => {
                             const Icon = stat.icon;
                             return (
@@ -549,7 +581,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
             >
-              Ready to Ace Your Next Interview?
+              Ready to Run Your First Interview?
             </motion.h2>
             <motion.p
               className="text-xl text-indigo-100 mb-8"
@@ -558,7 +590,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              Join thousands of job seekers who are improving their interview skills with SomPheas
+              Set up a session, invite your candidate, and get an AI evaluation — in minutes
             </motion.p>
             <motion.div
               whileHover={{ scale: 1.05 }}
@@ -598,7 +630,7 @@ export default function HomePage() {
               whileHover={{ scale: 1.05 }}
             >
               <MessageSquare className="h-6 w-6 text-primary" />
-              <span className="text-lg font-semibold">SomPheas</span>
+              <span className="text-lg font-semibold">InterviewLab</span>
             </motion.div>
             <div className="flex gap-6 text-sm text-muted-foreground">
               <motion.div whileHover={{ scale: 1.1 }}>
@@ -614,7 +646,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mt-8 text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} SomPheas. All rights reserved.
+            © {new Date().getFullYear()} InterviewLab. All rights reserved.
           </div>
         </div>
       </motion.footer>

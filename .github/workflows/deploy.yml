@@ -99,12 +99,14 @@ jobs:
           NEXT_PUBLIC_WS_URL: ${{ secrets.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000' }}
         run: npm run build
 
-  # ─── Deploy to Render (main branch only) ──────────────────────────────────
+  # ─── Deploy backend to Render (main branch only) ─────────────────────────
   deploy-backend:
     name: Deploy backend → Render
     needs: [backend, frontend]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push'
 
     steps:
       - name: Trigger Render deploy (API)
@@ -112,14 +114,5 @@ jobs:
           curl -fsSL -X POST \
             "https://api.render.com/deploy/srv-${{ secrets.RENDER_BACKEND_SERVICE_ID }}?key=${{ secrets.RENDER_BACKEND_DEPLOY_KEY }}"
 
-  deploy-frontend:
-    name: Deploy frontend → Render
-    needs: [backend, frontend]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Trigger Render deploy (Frontend)
-        run: |
-          curl -fsSL -X POST \
-            "https://api.render.com/deploy/srv-${{ secrets.RENDER_FRONTEND_SERVICE_ID }}?key=${{ secrets.RENDER_FRONTEND_DEPLOY_KEY }}"
+  # ─── Frontend deploys automatically via Vercel ────────────────────────────
+  # No deploy job needed — Vercel detects pushes to main and deploys automatically.
