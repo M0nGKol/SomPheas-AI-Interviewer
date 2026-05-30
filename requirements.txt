@@ -1,0 +1,25 @@
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+sqlalchemy>=2.0.23
+alembic>=1.12.1
+asyncpg>=0.29.0
+redis>=5.0.1
+authlib>=1.2.1
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.1
+python-multipart>=0.0.6
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+google-genai>=1.0.0
+pdfplumber>=0.10.0
+aiofiles>=23.2.1
+python-dotenv>=1.0.0
+livekit>=1.0.0
+livekit-agents>=1.0.0
+docker>=6.1.0
+celery>=5.3.6
+# dev / test
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+httpx>=0.25.2
+ruff>=0.1.6
