@@ -1,91 +1,74 @@
-# SomPheas Frontend
+# InterviewLab Frontend
 
-Modern, performant Next.js frontend for SomPheas.
+Next.js 16 frontend for InterviewLab — real-time collaborative technical interview platform.
 
 ## Features
 
-- ⚡ **Performance Optimized**: Built with Next.js 14 App Router, React Query, and optimized components
-- 🎨 **Modern UI**: Beautiful design system with shadcn/ui components
-- 🔐 **Authentication**: Secure JWT-based authentication with Zustand state management
-- 📱 **Responsive**: Mobile-first design that works on all devices
-- ♿ **Accessible**: WCAG compliant components
-- 🚀 **Production Ready**: Optimized for performance and maintainability
+- **Live collaborative editor** — Monaco + Yjs CRDT, synced in real time across participants
+- **Voice & video** — LiveKit WebRTC with local/remote track rendering
+- **Screen sharing** — `getDisplayMedia` + LiveKit screen track publishing
+- **Collaborative debugging** — shared Yjs breakpoints with per-author color coding
+- **AI chat** — SSE streaming from Gemini during interviews
+- **Analytics** — skill progression charts with Recharts
+- **Role-based UI** — Candidate, Interviewer, and Admin dashboards
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Components**: shadcn/ui
-- **State Management**: Zustand
-- **Data Fetching**: TanStack Query (React Query)
-- **Icons**: Lucide React
-- **HTTP Client**: Axios
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript 5
+- **Styling**: Tailwind CSS 4
+- **Components**: shadcn/ui (Radix UI primitives)
+- **State**: Zustand (auth), TanStack Query (server state)
+- **Real-time**: Yjs + y-monaco, LiveKit Client
+- **Editor**: @monaco-editor/react
+- **Charts**: Recharts
+- **HTTP**: Axios
+- **Forms**: React Hook Form + Zod
 
 ## Getting Started
 
-1. Install dependencies:
 ```bash
 npm install
-```
-
-2. Copy environment variables:
-```bash
-cp .env.local.example .env.local
-```
-
-3. Update `.env.local` with your API URL:
-```
-NEXT_PUBLIC_API_URL=http://localhost:8003
-```
-
-4. Run the development server:
-```bash
+cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL and NEXT_PUBLIC_WS_URL
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
+
+## Environment Variables
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_WS_URL=ws://localhost:8000
+```
+
+## Scripts
+
+```bash
+npm run dev       # Development server
+npm run build     # Production build
+npm run start     # Start production server
+npm run lint      # ESLint
+```
 
 ## Project Structure
 
 ```
 frontend/
 ├── app/                    # Next.js App Router pages
-│   ├── (auth)/            # Authentication routes
-│   ├── dashboard/          # Dashboard pages
-│   ├── layout.tsx          # Root layout
-│   └── providers.tsx      # React Query provider
-├── components/             # React components
-│   ├── layout/            # Layout components
-│   └── ui/                # shadcn/ui components
-├── lib/                    # Utilities and helpers
-│   ├── api/               # API client and endpoints
-│   └── store/             # Zustand stores
-└── public/                 # Static assets
-```
-
-## Performance Optimizations
-
-- Image optimization with Next.js Image component
-- Code splitting and lazy loading
-- React Query for efficient data fetching and caching
-- Optimized bundle size with tree-shaking
-- Compression enabled
-- DNS prefetching headers
-
-## Design System
-
-The design system uses a professional color palette:
-- **Primary**: Professional blue for main actions
-- **Secondary**: Subtle gray for secondary actions
-- **Destructive**: Red for errors and destructive actions
-- **Muted**: Light backgrounds for subtle elements
-
-All colors support both light and dark modes.
-
-## Building for Production
-
-```bash
-npm run build
-npm start
+│   ├── (auth)/             # Login, register
+│   ├── dashboard/          # All dashboard pages
+│   ├── interview/[id]/     # Live interview room
+│   └── join/[code]/        # Candidate join page
+├── components/
+│   ├── interview/          # InterviewRoom, Editor, DebugPanel, Voice/Video
+│   ├── analytics/          # Charts and evaluation display
+│   ├── layout/             # Navbar, sidebar
+│   └── ui/                 # shadcn/ui base components
+├── hooks/
+│   ├── use-yjs-editor.ts   # Yjs + Monaco real-time sync
+│   └── use-livekit-room.ts # LiveKit WebRTC connection
+└── lib/
+    ├── api/                # Typed API clients (axios)
+    └── store/              # Zustand stores
 ```

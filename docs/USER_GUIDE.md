@@ -1,200 +1,125 @@
 # User Guide
 
+## Roles
+
+| Role | Access |
+|------|--------|
+| **Candidate** | Join interviews, use editor, chat with AI |
+| **Interviewer** | Create and manage interviews, invite candidates, view evaluations |
+| **Admin** | Everything above + System Health dashboard |
+
+---
+
 ## Getting Started
 
-### 1. Create Account
+### 1. Create an Account
 
-1. Navigate to `/register`
-2. Enter email and password
-3. Verify email (if required)
-4. Log in at `/login`
+1. Go to the app and click **Get Started**
+2. Enter email, password, and full name
+3. Select your role: **Candidate** or **Interviewer**
+4. Log in
 
-### 2. Upload Resume
+---
 
-1. Go to **Resumes** → **Upload Resume**
-2. Upload PDF resume
-3. Wait for analysis (30-60 seconds)
-4. Review extracted data
+## Interviewer Flow
 
-**Supported Formats:** PDF only
+### Create a Coding Problem
 
-### 3. Start Interview
+1. Go to **Problems** in the sidebar
+2. Click **New Problem**
+3. Fill in: title, description, difficulty (Easy / Medium / Hard), language, and starter code
+4. Or click **Generate with AI** — enter a prompt and the AI creates the problem for you
+5. Save
 
-1. Go to **Interviews** → **New Interview**
-2. Select analyzed resume
-3. (Optional) Add job description
-4. Click **Start Interview**
+### Schedule an Interview
 
-## Interview Flow
+1. Go to **Interviews → New Interview**
+2. Set title, select a candidate (by email), and optionally attach a coding problem
+3. Click **Create Interview**
+4. From the detail page, copy the **Invite Link** or **Room Code**
+5. Send the link to your candidate
 
-```mermaid
-graph LR
-    A[Start] --> B[Greeting]
-    B --> C[Questions]
-    C --> D{User Response}
-    D -->|Answer| C
-    D -->|Code Request| E[Sandbox]
-    E --> F[Code Review]
-    F --> C
-    D -->|Complete| G[Evaluation]
-    G --> H[Feedback]
-    H --> I[End]
-```
+### Run the Interview
 
-The orchestrator manages flow through phases: intro (greeting), exploration (resume-based questions), technical (code exercises), and closing (evaluation). The LLM decides transitions based on conversation context, user responses, and interview progress. Code submissions trigger immediate routing to `code_review`, bypassing normal question flow. The agent guides you to the sandbox when appropriate, and code execution results inform the next questions.
+1. Open the interview detail page and click **Join Interview**
+2. You enter the **Interview Room** with:
+   - Shared Monaco code editor (live sync with the candidate)
+   - AI chat panel on the right
+   - Voice/video panel (LiveKit)
+   - Run button to execute code
 
-### Phases
+### Screen Sharing
 
-| Phase           | Description                     | Duration  |
-| --------------- | ------------------------------- | --------- |
-| **Intro**       | Greeting, initial questions     | 2-5 min   |
-| **Exploration** | Resume-based questions          | 10-20 min |
-| **Technical**   | Code exercises, problem-solving | 10-15 min |
-| **Closing**     | Final questions, wrap-up        | 2-5 min   |
+1. Click the **Monitor** icon in the editor toolbar
+2. Choose a screen or window in the browser dialog
+3. A preview thumbnail appears in the bottom-left corner
+4. If connected to LiveKit, the screen is shared with the candidate
 
-## Using the Code Sandbox
+### Collaborative Debugging
 
-### Accessing Sandbox
+1. Click the **Bug** icon in the editor toolbar to enter Debug Mode
+2. Click any **line number** in the editor gutter to set a breakpoint
+3. Add an optional comment in the Debug Panel on the left
+4. The candidate sees your breakpoints instantly (color-coded by author)
+5. The candidate can set their own breakpoints too
 
-1. During interview, agent may guide you to sandbox
-2. Sandbox appears on right side of screen
-3. Select language (Python/JavaScript)
+### End and Review
 
-### Writing Code
+1. Click **End Interview** when done
+2. The AI evaluation runs in the background (Celery worker)
+3. Go to **Analytics** — skill scores and feedback appear automatically
 
-1. Type code in editor
-2. Click **Run** to test locally
-3. Click **Submit** to submit to interview
-4. Agent reviews code and provides feedback
+---
 
-### Supported Languages
+## Candidate Flow
 
-| Language       | Version | Features                                    |
-| -------------- | ------- | ------------------------------------------- |
-| **Python**     | 3.11    | Full standard library, no external packages |
-| **JavaScript** | Node 18 | Standard Node.js APIs                       |
+### Join via Invite Link
 
-### Code Submission
+1. Click the invite link the interviewer sent
+2. Log in or register as a Candidate
+3. You go directly into the Interview Room
 
-**What happens:**
+### Join via Room Code
 
-1. Code executed in isolated Docker container
-2. Execution results analyzed
-3. Code quality assessed (correctness, efficiency, readability)
-4. Agent provides feedback
+1. Log in as a Candidate
+2. On the Candidate Dashboard, click **Join with Room Code**
+3. Enter the 6-character code and click **Join**
 
-**Best Practices:**
+### Inside the Interview Room
 
-- Write clear, readable code
-- Add comments for complex logic
-- Test your code before submitting
-- Follow language best practices
+- **Code Editor** — write your solution; the interviewer sees every edit live
+- **AI Chat** — ask for hints, explain your approach, request feedback
+- **Voice/Video** — your audio and video are shared with the interviewer
+- **Run Code** — click Run to execute your code and see output inline
+- **Breakpoints** — if the interviewer sets a breakpoint, it appears as a colored dot on that line
 
-## Interview Tips
+> **Note:** The AI monitors for suspicious activity (tab switching, large code pastes). This is logged for the interviewer's review.
 
-### Communication
+---
 
-- **Speak clearly**: Enunciate words, avoid mumbling
-- **Be concise**: Answer directly, avoid rambling
-- **Ask for clarification**: If question unclear, ask agent to rephrase
+## Admin Flow
 
-### Technical Questions
+1. Log in with an Admin account
+2. Go to **System** in the sidebar
+3. The System Health dashboard shows all active backend nodes
+4. Each card shows: Node ID, status, request count, CPU and memory
+5. Click **Simulate Failure** to remove a node from the pool (deletes its Redis heartbeat)
+6. The dashboard auto-refreshes every 5 seconds
 
-- **Think aloud**: Explain your thought process
-- **Start simple**: Begin with basic solution, then optimize
-- **Admit uncertainty**: It's okay to say "I'm not sure, but I think..."
+---
 
-### Code Exercises
+## Analytics
 
-- **Read carefully**: Understand problem before coding
-- **Test edge cases**: Consider boundary conditions
-- **Refactor if needed**: Improve code after initial solution
+- Go to **Analytics** in the sidebar
+- View per-interview evaluation scores: Technical, Code Quality, Communication, Problem-Solving, Overall
+- Skill progression charts show improvement over multiple sessions
+- Strengths and weaknesses listed per evaluation with AI-generated feedback summary
 
-## Understanding Feedback
+---
 
-### Skill Breakdown
+## Tips
 
-| Skill                   | Weight | Description                          |
-| ----------------------- | ------ | ------------------------------------ |
-| **Communication**       | 25%    | Clarity, articulation, engagement    |
-| **Technical Knowledge** | 30%    | Depth, accuracy, expertise           |
-| **Problem-Solving**     | 25%    | Approach, logic, creativity          |
-| **Code Quality**        | 20%    | Correctness, efficiency, readability |
-
-### Feedback Components
-
-1. **Overall Score**: Weighted average (0.0-1.0)
-2. **Skill Scores**: Individual scores per dimension
-3. **Strengths**: 2-3 things you did well
-4. **Weaknesses**: 2-3 areas for improvement
-5. **Recommendations**: 3-5 actionable next steps
-
-### Interpreting Scores
-
-| Score Range | Interpretation                 |
-| ----------- | ------------------------------ |
-| 0.8-1.0     | Excellent - Strong performance |
-| 0.6-0.79    | Good - Solid with minor gaps   |
-| 0.4-0.59    | Fair - Needs improvement       |
-| 0.0-0.39    | Poor - Significant gaps        |
-
-## Common Issues
-
-### Audio Problems
-
-**No sound:**
-
-- Check browser permissions (microphone/speaker)
-- Verify internet connection
-- Refresh page and reconnect
-
-**Echo/feedback:**
-
-- Use headphones
-- Reduce speaker volume
-- Check microphone sensitivity
-
-### Connection Issues
-
-**Agent disconnected:**
-
-- Refresh page
-- Check internet connection
-- Restart interview if needed
-
-**Slow responses:**
-
-- Check network speed
-- Close other browser tabs
-- Wait for agent to respond (may take 5-10 seconds)
-
-### Code Execution Errors
-
-**Code won't run:**
-
-- Check syntax errors
-- Verify language selected correctly
-- Review error messages
-
-**Timeout:**
-
-- Code execution limited to 30 seconds
-- Optimize slow algorithms
-- Break into smaller functions
-
-## Best Practices
-
-1. **Prepare**: Review your resume before interview
-2. **Practice**: Do mock interviews to get comfortable
-3. **Focus**: Minimize distractions during interview
-4. **Take notes**: Jot down key points during conversation
-5. **Review feedback**: Learn from each interview
-
-## Support
-
-**Need help?**
-
-- Check [FAQ](#) (coming soon)
-- Email: support@sompheas.com
-- Discord: [Join community](#)
-
+- Use two different browsers (or incognito) to test both Interviewer and Candidate simultaneously
+- Screen sharing works best in Chrome and Edge
+- If voice/video shows "Disconnected", the interviewer needs to configure LiveKit credentials
+- AI evaluation may take 15–30 seconds after the interview ends — the page updates automatically

@@ -2,340 +2,151 @@
 
 ## Prerequisites
 
-| Requirement        | Version | Installation                                           |
-| ------------------ | ------- | ------------------------------------------------------ |
-| **Python**         | 3.11+   | [python.org](https://www.python.org/downloads/)        |
-| **Node.js**        | 18+     | [nodejs.org](https://nodejs.org/)                      |
-| **PostgreSQL**     | 14+     | [postgresql.org](https://www.postgresql.org/download/) |
-| **Redis**          | 7+      | [redis.io](https://redis.io/download)                  |
-| **Docker**         | 20+     | [docker.com](https://www.docker.com/get-started)       |
-| **LiveKit Server** | Latest  | [livekit.io](https://livekit.io/docs/deployment/)      |
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| **Python** | 3.11+ | Use pyenv or system install |
+| **Node.js** | 20+ | Required for Next.js 16 |
+| **PostgreSQL** | 15+ | Or use Docker |
+| **Redis** | 7+ | Or use Docker |
+| **Docker** | 20+ | Required for code execution sandbox |
 
-## Environment Setup
+---
 
-### 1. Clone Repository
+## 1. Clone
 
 ```bash
-git clone <repository-url>
-cd SomPheas
+git clone https://github.com/M0nGKol/SomPheas-AI-Interviewer
+cd InterviewLab
 ```
 
-### 2. Backend Setup
+---
+
+## 2. Backend Setup
 
 ```bash
-cd src
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# Create and activate virtualenv
+python -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
 
 # Install dependencies
-pip install -r ../requirements.txt  # Or use uv/pip-tools
+pip install -r requirements.txt
 
-# Create .env file
+# Copy and fill in environment variables
 cp .env.example .env
 ```
 
-**Required Environment Variables:**
+### Required `.env` values
 
-```bash
-# Database
-DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/sompheas
+```env
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/interviewlab
+REDIS_URL=redis://localhost:6379
+SECRET_KEY=dev-secret-key-change-in-production
+GEMINI_API_KEY=your_gemini_api_key_here
 
-# Redis
-REDIS_URL=redis://localhost:6379/0
+# LiveKit (optional for local dev — voice/video won't work without it)
+LIVEKIT_API_KEY=
+LIVEKIT_API_SECRET=
+LIVEKIT_URL=
 
-# Security
-SECRET_KEY=your-secret-key-here
-
-# OpenAI
-OPENAI_API_KEY=sk-...
-
-# LiveKit
-LIVEKIT_URL=wss://localhost:7880
-LIVEKIT_API_KEY=your-api-key
-LIVEKIT_API_SECRET=your-api-secret
+ENVIRONMENT=development
 ```
 
-### 3. Database Setup
+### Run migrations
 
 ```bash
-# Create database
-createdb sompheas
-
-# Run migrations
 alembic upgrade head
 ```
 
-### 4. Frontend Setup
+### Start the API
+
+```bash
+uvicorn src.main:app --reload --port 8000
+```
+
+API available at `http://localhost:8000`
+Interactive docs at `http://localhost:8000/docs`
+
+### Start the Celery worker (separate terminal)
+
+```bash
+celery -A src.workers.celery_app worker --loglevel=info
+```
+
+The worker processes AI evaluation tasks queued after interviews end.
+
+---
+
+## 3. Frontend Setup
 
 ```bash
 cd frontend
 
-# Install dependencies
 npm install
 
-# Create .env.local
-cp .env.example .env.local
+# Copy environment file
+cp .env.local.example .env.local
 ```
 
-**Frontend Environment Variables:**
+### `.env.local` values
 
-```bash
+```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_LIVEKIT_URL=ws://localhost:7880
+NEXT_PUBLIC_WS_URL=ws://localhost:8000
 ```
 
-### 5. LiveKit Server
-
-**Option 1: Docker (Recommended)**
+### Start the dev server
 
 ```bash
-docker run -d \
-  -p 7880:7880 \
-  -p 7881:7881 \
-  -p 7882:7882/udp \
-  -e LIVEKIT_KEYS="api-key: api-secret" \
-  livekit/livekit-server
-```
-
-**Option 2: Binary**
-
-```bash
-# Download from livekit.io
-./livekit-server --dev
-```
-
-## Running Locally
-
-### Development Mode
-
-**Terminal 1: Backend API**
-
-```bash
-cd src
-uvicorn main:app --reload --port 8000
-```
-
-**Terminal 2: Frontend**
-
-```bash
-cd frontend
 npm run dev
 ```
 
-**Terminal 3: LiveKit Agent**
+Frontend available at `http://localhost:3000`
+
+---
+
+## 4. Docker (All-in-one)
+
+Run everything with Docker Compose:
 
 ```bash
-cd src
-python -m src.agents.interview_agent dev
+docker-compose up
 ```
 
-**Terminal 4: Redis (if not running)**
+Services started:
+- `api` — FastAPI on port 8000
+- `worker` — Celery worker
+- `db` — PostgreSQL on port 5432
+- `redis` — Redis on port 6379
+
+For load balancing simulation (2 API replicas + nginx):
 
 ```bash
-redis-server
+docker-compose -f docker-compose.yml -f docker-compose.lb.yml up
 ```
 
-### Access Points
+---
 
-| Service            | URL                        |
-| ------------------ | -------------------------- |
-| **Frontend**       | http://localhost:3000      |
-| **Backend API**    | http://localhost:8000      |
-| **API Docs**       | http://localhost:8000/docs |
-| **LiveKit Server** | ws://localhost:7880        |
-
-## Development Workflow
-
-### Making Changes
-
-1. **Backend Changes**
-
-   - Edit Python files in `src/`
-   - API auto-reloads (uvicorn --reload)
-   - Run tests: `pytest`
-
-2. **Frontend Changes**
-
-   - Edit files in `frontend/`
-   - Hot reload enabled
-   - Type checking: `npm run type-check`
-
-3. **Orchestrator Changes**
-   - Edit files in `src/services/orchestrator/`
-   - Restart agent to pick up changes
-   - Check logs for errors
-
-### Database Migrations
+## 5. Running Tests
 
 ```bash
-# Create migration
-alembic revision --autogenerate -m "description"
+# Backend
+pytest tests/ -v --tb=short
 
-# Apply migration
-alembic upgrade head
+# Frontend type-check
+cd frontend && npx tsc --noEmit
 
-# Rollback
-alembic downgrade -1
+# Frontend lint
+cd frontend && npm run lint
 ```
 
-### Testing
+---
 
-**Backend Tests:**
+## 6. Common Issues
 
-```bash
-pytest tests/
-pytest tests/ -v  # Verbose
-pytest tests/ -k test_name  # Specific test
-```
-
-**Frontend Tests:**
-
-```bash
-npm test
-npm run test:watch
-```
-
-## Debugging
-
-### Backend Debugging
-
-**Enable Debug Logging:**
-
-```python
-# src/core/logging.py
-LOG_LEVEL = "DEBUG"
-```
-
-**View Logs:**
-
-```bash
-tail -f logs/sompheas.log
-```
-
-**Database Inspection:**
-
-```bash
-psql sompheas
-SELECT * FROM interviews;
-```
-
-### Agent Debugging
-
-**Enable Agent Logs:**
-
-```bash
-export LIVEKIT_LOG=debug
-python -m src.agents.interview_agent dev
-```
-
-**Check Agent State:**
-
-- Logs show state transitions
-- Check `src/services/logging/interview_logger.py` output
-
-### Frontend Debugging
-
-**React DevTools:**
-
-- Install browser extension
-- Inspect component state
-
-**Network Inspection:**
-
-- Chrome DevTools → Network tab
-- Check API requests/responses
-
-## Common Issues
-
-| Issue                         | Solution                                                   |
-| ----------------------------- | ---------------------------------------------------------- |
-| **Port already in use**       | Change port or kill process: `lsof -ti:8000 \| xargs kill` |
-| **Database connection error** | Verify PostgreSQL running: `pg_isready`                    |
-| **Redis connection error**    | Start Redis: `redis-server`                                |
-| **Agent won't connect**       | Check LiveKit server running, verify credentials           |
-| **Import errors**             | Activate venv, reinstall dependencies                      |
-| **Migration conflicts**       | Reset DB: `alembic downgrade base && alembic upgrade head` |
-
-## Code Submission Flow (Development)
-
-```mermaid
-sequenceDiagram
-    participant F as Frontend
-    participant A as API
-    participant D as Database
-    participant AG as Agent
-    participant O as Orchestrator
-
-    F->>A: POST interviews 123 submit-code
-    A->>D: Save code to interview
-    A->>D: Update conversation_history
-    A->>F: 200 OK
-
-    Note over F,AG: User speaks I submitted code
-    F->>AG: Audio stream
-    AG->>O: execute_step code
-    O->>O: route_from_ingest to code_review
-    O->>O: Execute code in sandbox
-    O->>O: Analyze code quality
-    O->>D: Save results
-    O->>AG: Code review response
-    AG->>F: TTS audio
-```
-
-Code is persisted to the database first, then the user's voice message triggers the orchestrator with `current_code` set. The `route_from_ingest` function detects code presence and routes directly to `code_review`, bypassing intent detection. The sandbox service executes code in isolated Docker containers, and `get_code_metrics` analyzes quality using AST parsing. Results are appended to `code_submissions` via reducer, ensuring atomic updates even with concurrent state modifications.
-
-## State Inspection
-
-**View Interview State:**
-
-```python
-# In Python shell
-from src.services.data.state_manager import interview_to_state
-from src.models.interview import Interview
-from sqlalchemy import select
-
-# Load interview
-interview = await db.execute(select(Interview).where(Interview.id == 123))
-state = interview_to_state(interview.scalar_one())
-print(state)
-```
-
-**Check LangGraph State:**
-
-- Agent logs show state transitions
-- Database checkpoints contain full state
-- Redis cache (if enabled) shows current state
-
-## Performance Testing
-
-**Load Testing:**
-
-```bash
-# Install locust
-pip install locust
-
-# Run load test
-locust -f tests/load_test.py
-```
-
-**Monitor Resources:**
-
-```bash
-# CPU/Memory
-htop
-
-# Database connections
-psql -c "SELECT count(*) FROM pg_stat_activity;"
-
-# Redis memory
-redis-cli info memory
-```
-
-## Next Steps
-
-- [API Reference](API.md)
-- [LangGraph Guide](LANGGRAPH.md)
-- [Deployment Guide](DEPLOYMENT.md)
-
+| Problem | Fix |
+|---------|-----|
+| `asyncpg` connection refused | Make sure PostgreSQL is running and `DATABASE_URL` is correct |
+| Celery can't connect | Make sure Redis is running on port 6379 |
+| `alembic upgrade head` fails | Check `DATABASE_URL` — must use `postgresql+asyncpg://` scheme |
+| Screen sharing not working | Requires HTTPS or localhost — works on `localhost:3000` |
+| LiveKit errors | Leave `LIVEKIT_*` vars empty locally — voice/video panel shows disconnected state gracefully |
